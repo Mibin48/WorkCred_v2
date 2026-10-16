@@ -79,7 +79,7 @@ Active persistent refresh token sessions.
   _id: ObjectId,
   userId: ObjectId,
   familyId: String,
-  tokenHash: String,        // SHA-256 hash of refresh token
+  tokenHash: String,        // HMAC-SHA256 keyed hash of refresh token (with JWT_REFRESH_SECRET)
   usedAt: Date,
   replacedByHash: String,
   revokedAt: Date,

@@ -8,6 +8,9 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler.js';
 import { createRateLimiter } from './middleware/rateLimiter.js';
 import { pingDB } from './config/db.js';
 import { formatSuccess, formatError, ErrorCodes } from './utils/errors.js';
+import { createAuthMiddleware } from './middleware/auth.js';
+import { createAuthRouter } from './routes/auth.js';
+import { createUsersRouter } from './routes/users.js';
 
 export function createApp(config = {}) {
   const app = express();
@@ -90,6 +93,14 @@ export function createApp(config = {}) {
     }
     return res.status(503).json(formatError(ErrorCodes.SERVICE_UNAVAILABLE, 'Database connection is not ready'));
   });
+
+  // Mount Auth and Users routers
+  const authMiddleware = createAuthMiddleware(config);
+  const authRouter = createAuthRouter(config, authMiddleware);
+  const usersRouter = createUsersRouter(config, authMiddleware);
+
+  apiRouter.use('/auth', authRouter);
+  apiRouter.use('/users', usersRouter);
 
   app.use('/api/v1', apiRouter);
 

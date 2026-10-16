@@ -42,3 +42,15 @@ This document records key architectural, security, and product design decisions 
 ### 8. Work Passport Record Immutability Enforcement
 - **Decision:** Immutability of Passport record content (`workerId`, `bookingId`, `seq`, `skill`, `date`, `hours`, `rating`, `comment`, `employerName`, `prevHash`, `hash`) is enforced via Mongoose pre-update middleware hooks rejecting any modifications targeting fields other than `visible` and `maskEmployerName`.
 - **Rationale:** Guarantees append-only audit trail integrity at the database model layer so application bugs cannot tamper with historical records.
+
+### 9. Scrypt Password Hashing and Concurrency Limiting (Phase B2)
+- **Decision:** All user passwords are encrypted using `node:crypto` scrypt with a per-user 16-byte cryptographically secure salt, producing `scrypt$<saltHex>$<derivedKeyHex>`. Comparisons execute via `crypto.timingSafeEqual`. To protect system memory and the event loop against hash-flooding DoS, scrypt operations run through a concurrency cap limiting simultaneous hash jobs.
+- **Rationale:** State-of-the-art memory-hard protection against ASIC/GPU offline cracking without risking Node.js process starvation under load.
+
+### 10. Timing-Neutral Authentication and Dummy Verification (Phase B2)
+- **Decision:** Unknown emails and incorrect passwords return identical HTTP 401 `INVALID_CREDENTIALS` error responses. When an unknown email is provided, a dummy scrypt verification against a pre-computed hash runs to normalize execution latency and eliminate account enumeration side-channel timing leaks.
+- **Rationale:** Absolute prevention of user enumeration attacks.
+
+### 11. Refresh Token HMAC Storage and Family Revocation (Phase B2)
+- **Decision:** Refresh tokens are generated as 64-character random opaque hex strings and stored exclusively as keyed HMAC-SHA256 digests (`tokenHash`) using `JWT_REFRESH_SECRET`. Tokens rotate on every refresh. Replaying an already-consumed refresh token immediately revokes the entire session family (`revokedAt = now`) and returns `401 SESSION_INVALID`.
+- **Rationale:** Defense against cookie theft and replay attacks while ensuring compromised or stolen tokens cannot maintain silent refresh access.

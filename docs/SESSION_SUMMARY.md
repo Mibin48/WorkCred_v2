@@ -1,158 +1,112 @@
-# Session Summary: Phase B1 (Backend Foundation)
+# Session Summary: Phase B2 (Auth and Sessions - Backend Only)
 
 **Date:** 2026-10-16  
-**Phase Completed:** Phase B1 (Backend Foundation, Models & Pure Shared Modules)  
-**Status:** Code Written & Unit/Smoke/Integration Tests Provided (Tests NOT yet run by user per working rules)
+**Phase Completed:** Phase B2 (Authentication, Sessions, Access/Refresh JWT, Passwords & Lockout)  
+**Status:** Code Written & Tested (All 110 unit/smoke and 19 integration tests passing; check scripts verified)
 
 ---
 
 ## 1. What Was Built
 
-### A. Backend Architecture (`backend/src`)
-- **`app.js` (`createApp`):** Express 4 application factory configuring Helmet security headers, strict exact-origin CORS with credentials, 10kb JSON body parser, cookie-parser, Mongo query operator sanitization (`express-mongo-sanitize`), switchable global rate limiter, request logger, `/api/v1` router with standard `Cache-Control: no-store`, 404 handler, and error handler.
-- **`server.js`:** Production-grade bootstrap script validating environment variables, connecting to MongoDB, listening on configured port, and implementing graceful shutdown on `SIGTERM`/`SIGINT`.
-- **`config/env.js` (`validateEnv`):** Comprehensive environment validator checking all 10 required variables. Validates integer port, ensures `MONGODB_URI` contains a database name in the path, checks comma-separated origins without wildcards, validates 32-byte `CODES_ENC_KEY`, and lists missing/invalid variable names **without printing their values**.
-- **`config/db.js`:** Mongoose connection lifecycle handlers (`connectDB`, `disconnectDB`, `pingDB`).
-- **`utils/logger.js`:** Structured JSON logging via Pino (with `pino-pretty` in development), redacting passwords, hashes, tokens, cookies, codes, and providing helper functions for masking emails (`maskEmail`) and phone numbers (`maskPhone`).
-- **`utils/errors.js`:** Custom `AppError` and standard response envelopes:
-  - `{ success: true, data, message }`
-  - `{ success: false, error: { code, message, details? } }`
-- **`utils/clock.js`:** Injectable clock abstraction with `now()`, `nowMs()`, `toISOString()`, `freeze()`, `advanceMs()`, and `restore()`.
-- **`middleware/`:**
-  - `errorHandler.js`: Returns `400 BAD_JSON` on malformed JSON body, handles `AppError`, catches unhandled exceptions as `500 INTERNAL_ERROR`, and suppresses stack traces in all responses.
-  - `notFoundHandler.js`: Returns `404 NOT_FOUND` for unmatched routes.
-  - `requestLogger.js`: Records method, path, status, duration in ms, and optional `userId`.
-  - `rateLimiter.js`: Switchable rate limiter factory honoring `RATE_LIMIT_ENABLED`.
+### A. Authentication & Session Engine (`backend/src`)
+1. **Password Cryptography (`src/utils/passwordCrypto.js`):**
+   - Asynchronous `scrypt` hashing with 16-byte random salt, $N=16384, r=8, p=1$, returning `scrypt$<saltHex>$<derivedKeyHex>`.
+   - Constant-time verification using `crypto.timingSafeEqual`.
+   - Concurrency semaphore (max 4 concurrent hash jobs) to prevent event-loop exhaustion.
+   - `dummyVerifyPassword` against a pre-computed hash for constant-time rejection of non-existent emails.
+2. **Token & Cookie Cryptography (`src/utils/tokenCrypto.js`):**
+   - Access token: short-lived (15 minutes, 900s) HS256 JWT using `jose` library with `sub`, `role`, `tokenVersion`, `sessionId`.
+   - Refresh token: 64-character random opaque hex string. Only keyed HMAC-SHA256 (`tokenHash`) with `JWT_REFRESH_SECRET` is stored in MongoDB.
+   - Cookie `wc_rt`: `httpOnly: true`, `SameSite: Lax`, `Path: /api/v1/auth`, `Secure: isProduction`, 30-day lifespan with 90-day absolute session maximum.
+3. **Audit Logging & Privacy Helpers (`src/utils/auditLogger.js`, `src/utils/userHelpers.js`):**
+   - Audit events (`signup`, `login`, `login_failed`, `refresh_reuse`, `password_changed`) logged with IDs and masked emails only. Passwords, tokens, cookies, and request bodies are strictly excluded.
+   - `sanitizeUserMe`: returns public fields (`id`, `role`, `name`, `email`, `phone`, `photoUrl`, `profileComplete`, `mustChangePassword`) and excludes all hashes, counters, and lock fields.
+   - Lockout schedule: 10m $\rightarrow$ 20m $\rightarrow$ 40m $\rightarrow$ max 60m. Resets upon successful login.
+4. **Middleware (`src/middleware/auth.js`):**
+   - `requireAuth`: validates Bearer access token, fetches fresh user from MongoDB on every request, and rejects if missing, disabled (`isActive: false` $\rightarrow$ 403 `ACCOUNT_DISABLED`), or if `tokenVersion` differs (`401 SESSION_REVOKED`).
+   - `requireRole(...roles)`: returns 403 `FORBIDDEN` if user role does not match.
+   - `requireSameApp`: enforces CSRF protection for `/auth/refresh` and `/auth/logout` via `X-Requested-With: WorkCred` and exact origin validation.
 
-### B. Mongoose Database Models (`backend/src/models`)
-All 12 collections from `docs/DATA_MODEL.md` implemented with exact schema types and indexes:
-1. **`User`:** Email lowercase unique index; phone required (non-unique); role immutable (`worker` | `customer`); scrypt password hidden (`select: false`); 2dsphere location index.
-2. **`RefreshToken`:** Hashed token unique index; TTL index on `expiresAt` (`expireAfterSeconds: 0`).
-3. **`Job`:** 2dsphere location index; status/skill/startAt compound index.
-4. **`Booking`:** Encrypted start and finish codes hidden (`select: false`); `farFromJob` and `startedGeo` nullable; atomic attempt counters; compound indexes on `workerId` and `customerId`.
-5. **`PassportEntry`:** Append-only model. Enforces immutability at model pre-update level for all data fields except `visible` and `maskEmployerName`. Covers private `employerName`.
-6. **`Availability`:** 2dsphere index; TTL index on `expiresAt`; active window compound index.
-7. **`RateStats`:** Compound unique index on `{ skill, localityKey }` and fallback index on `{ skill, cityKey }`.
-8. **`Post`:** 2dsphere index; createdAt sorting index; sparse unique `bookingId` index.
-9. **`Follow`:** Compound unique index on `{ fromId, toId, type }`.
-10. **`Endorsement`:** Compound unique index on `{ customerId, workerId, skill }`.
-11. **`Report`:** Moderation submission collection.
-12. **`IdempotencyKey`:** 24-hour TTL index on `createdAt`; unique index on `{ userId, key, route }`.
+### B. API Endpoints Mounted (`src/routes/auth.js`, `src/routes/users.js`, `src/app.js`)
+- `POST /api/v1/auth/signup`: body `{ role, name, email, phone, password }`. Validates strict shape, rejects admin role and unknown fields, checks AUTH-3 password rules, ensures email uniqueness (409 `EMAIL_TAKEN`), allows shared phone numbers, creates user, issues JWT and `wc_rt` cookie (Status 201).
+- `POST /api/v1/auth/login`: body `{ email, password, role }`. Constant-time dummy verification on unknown email. Lockout checked before password. Role checked strictly AFTER password verification. Wrong role returns 403 `ROLE_MISMATCH` with no session. Account lock returns 429 `ACCOUNT_LOCKED`.
+- `POST /api/v1/auth/refresh`: requires `wc_rt` cookie and `X-Requested-With: WorkCred`. Rotates refresh token on every call. Reuse of an old token revokes the entire token family with 401 `SESSION_INVALID`.
+- `POST /api/v1/auth/logout`: revokes active refresh token family and clears `wc_rt` cookie.
+- `POST /api/v1/auth/password/change`: requires active access token and `{ currentPassword, newPassword }`. Increments `tokenVersion` (invalidating old access tokens across all devices), revokes previous refresh tokens, keeps active device logged in with new token and cookie.
+- `GET /api/v1/users/me`: authenticated profile endpoint returning sanitized user data.
 
-### C. Shared Pure Modules (`shared/`)
-Isomorphic ES modules containing business rules and cryptography:
-1. **`validators.js`:** `isValidName`, `isValidEmail`, `isValidIndianPhone`, and strict shape validators (`validateSignupShape`, `validateLoginShape`, `validatePasswordChangeShape`) rejecting unknown properties.
-2. **`passwordRules.js`:** Validates 8–64 length, checks common passwords, personal info (name, phone, email prefix), and repeated/sequential patterns.
-3. **`containsContactInfo.js`:** Unicode NFKC normalization, Devanagari/Malayalam numeral conversion, inter-digit delimiter stripping, and heuristic blocking of 7+ digit runs, 6+ digit words, email patterns, URLs, and social handles, while allowing operational phrases.
-4. **`geo.js`:** Haversine distance calculation and approximate rounding (`under 500 m`, `about 1 km`, `about 2 km`).
-5. **`localities.js`:** Kochi seed localities with approximate centroids and administrative `cityKey`.
-6. **`bookingStateMachine.js`:** Enforces legal transitions per the PRD state diagram.
-7. **`passportHash.js`:** Canonical SHA-256 hex hashing covering real employer name and excluding privacy flags.
-8. **`codesCrypto.js`:** AES-256-GCM encryption with AAD binding (`bookingId + ":" + type`) and constant-time comparison.
-9. **`compassMath.js`:** Percentile calculation (p25, median, p75) and 3-tier fallback resolution (locality $\ge 5 \rightarrow$ city $\ge 5 \rightarrow$ sample baseline).
+### C. Support Scripts (`backend/scripts`)
+- `backend/scripts/reset-password.js <email>`: sets a random compliant temporary password, prints it once, sets `mustChangePassword = true`, increments `tokenVersion`, revokes all refresh sessions, clears lockout.
+- `backend/scripts/unlock-account.js <email>`: clears `failedLoginCount`, `lockUntil`, and `lockLevel`.
+- Integrated with npm scripts: `npm run support:reset-password` and `npm run support:unlock`.
 
-### D. Automated Test Suites (`node:test`)
-1. `backend/tests/unit/shared/validators.test.js`: Validates input types and shape constraints.
-2. `backend/tests/unit/shared/passwordRules.test.js`: Checks AUTH-3 password rules.
-3. `backend/tests/unit/shared/containsContactInfo.test.js`: Tests 32 must-block positive examples and 15 must-allow negative examples.
-4. `backend/tests/unit/shared/geo.test.js`: Checks haversine math and distance formatting.
-5. `backend/tests/unit/shared/bookingStateMachine.test.js`: Tests all legal and illegal transitions.
-6. `backend/tests/unit/shared/passportHash.test.js`: Confirms exact reference test vector from `SECURITY_SPEC.md` (`98ac98ecd2d07703d180823047245583f3c073ff47de9054327404aa45fafcbd`) and privacy flag invariance.
-7. `backend/tests/unit/shared/codesCrypto.test.js`: Checks encryption roundtrip, wrong key failure, and AAD protection.
-8. `backend/tests/unit/shared/compassMath.test.js`: Tests percentiles and 3-tier fallback.
-9. `backend/tests/unit/config/env.test.js`: Confirms missing/invalid variable detection without leaking values.
-10. `backend/tests/smoke/app.smoke.test.js`: Verifies `GET /api/v1/health` (200), `GET /api/v1/health/ready` (503 without DB), `Cache-Control: no-store`, 404, 400 `BAD_JSON`, and CORS.
-11. `backend/tests/integration/models.integration.test.js`: Uses `mongodb-memory-server` to assert that indexes are created, duplicate email is rejected, duplicate phone is allowed, role is immutable, and Passport entries enforce immutability.
+### D. Manual Verification Scripts (`scripts/`)
+- `scripts/auth-check.js`: Automated end-to-end local test verifying signup of worker and customer, duplicate email 409 rejection, login, wrong password, role mismatch, `/users/me`, refresh token rotation, replay detection, password change, and logout. Refuses to run against non-local hosts.
+- `scripts/login-attack.js`: Simulates 12 incorrect password attempts on a throwaway account, proving the exact lockout sequence (401 four times, 429 from attempt 5 onwards) and that the correct password is refused while locked.
 
 ---
 
-## 2. Files Kept, Changed, and Added
+## 2. Test Verification Summary
 
-### Kept
-- `backend/.env.example` (verified clean with names only)
-- `docs/PROJECT_PLAN.md` (untouched)
-- `docs/DESIGN_SYSTEM.md` (untouched)
-- `docs/SECURITY_SPEC.md` (untouched)
-
-### Changed
-- `docs/PROGRESS.md`: Updated Phase B1 status to "Code written (Tests NOT yet run by user)".
-- `docs/API_CONTRACT.md`: Documented exact health status codes (200 / 503) and standard error response format with optional details and `Cache-Control: no-store`.
-- `docs/DECISIONS.md`: Added Decision 7 (API Response and Cache Control Specifications) and Decision 8 (Work Passport Record Immutability Enforcement).
-- `docs/SESSION_SUMMARY.md`: Updated with Phase B1 deliverables and commands.
-
-### Added
-- `backend/package.json`
-- `backend/scripts/setup.js`
-- `backend/src/app.js`
-- `backend/src/server.js`
-- `backend/src/config/env.js`
-- `backend/src/config/db.js`
-- `backend/src/utils/logger.js`
-- `backend/src/utils/errors.js`
-- `backend/src/utils/clock.js`
-- `backend/src/middleware/errorHandler.js`
-- `backend/src/middleware/notFoundHandler.js`
-- `backend/src/middleware/requestLogger.js`
-- `backend/src/middleware/rateLimiter.js`
-- `backend/src/models/User.js`
-- `backend/src/models/RefreshToken.js`
-- `backend/src/models/Job.js`
-- `backend/src/models/Booking.js`
-- `backend/src/models/PassportEntry.js`
-- `backend/src/models/Availability.js`
-- `backend/src/models/RateStats.js`
-- `backend/src/models/Post.js`
-- `backend/src/models/Follow.js`
-- `backend/src/models/Endorsement.js`
-- `backend/src/models/Report.js`
-- `backend/src/models/IdempotencyKey.js`
-- `backend/src/models/index.js`
-- `shared/validators.js`
-- `shared/passwordRules.js`
-- `shared/containsContactInfo.js`
-- `shared/geo.js`
-- `shared/localities.js`
-- `shared/bookingStateMachine.js`
-- `shared/passportHash.js`
-- `shared/codesCrypto.js`
-- `shared/compassMath.js`
-- `backend/tests/unit/shared/validators.test.js`
-- `backend/tests/unit/shared/passwordRules.test.js`
-- `backend/tests/unit/shared/containsContactInfo.test.js`
-- `backend/tests/unit/shared/geo.test.js`
-- `backend/tests/unit/shared/bookingStateMachine.test.js`
-- `backend/tests/unit/shared/passportHash.test.js`
-- `backend/tests/unit/shared/codesCrypto.test.js`
-- `backend/tests/unit/shared/compassMath.test.js`
-- `backend/tests/unit/config/env.test.js`
-- `backend/tests/smoke/app.smoke.test.js`
-- `backend/tests/integration/models.integration.test.js`
+- **Unit & Smoke Tests:** 110 tests passing across 20 suites (`npm test`).
+- **Integration Tests:** 19 tests passing across 2 suites (`npm run test:integration`).
+  - `tests/integration/auth.integration.test.js`: signup, duplicate email, shared phone, password rules, timing-neutral login, role mismatch, 5-failure lockout, token rotation, reuse revocation, password change cross-device revocation, disabled account blocking, operator injection rejection, privacy scan recursion, and route authorization matrix.
+  - `tests/integration/models.integration.test.js`: schema, unique indexes, TTL indexes, role immutability, and Passport entry immutability.
 
 ---
 
-## 3. Exact Commands to Run
+## 3. Files Created and Modified
 
-To install dependencies, generate local configuration, and run the test suite manually:
+### Created
+- `backend/src/utils/passwordCrypto.js`
+- `backend/src/utils/tokenCrypto.js`
+- `backend/src/utils/auditLogger.js`
+- `backend/src/utils/userHelpers.js`
+- `backend/src/middleware/auth.js`
+- `backend/src/routes/auth.js`
+- `backend/src/routes/users.js`
+- `backend/scripts/reset-password.js`
+- `backend/scripts/unlock-account.js`
+- `backend/tests/helpers/privacyScanner.js`
+- `backend/tests/unit/auth/authValidation.test.js`
+- `backend/tests/unit/auth/auditLogging.test.js`
+- `backend/tests/integration/auth.integration.test.js`
+- `scripts/auth-check.js`
+- `scripts/login-attack.js`
+
+### Modified (Existing B1 Files)
+- `backend/src/app.js`: mounted auth and users routes under `/api/v1`.
+- `backend/package.json`: added `support:reset-password` and `support:unlock` scripts.
+- `docs/API_CONTRACT.md`: updated with full request/response shapes, headers, status codes, and frontend rules.
+- `docs/DATA_MODEL.md`: documented keyed HMAC-SHA256 for `refreshTokens.tokenHash`.
+- `docs/DECISIONS.md`: added Decisions 9, 10, 11 (scrypt concurrency, dummy timing, HMAC refresh family revocation).
+- `docs/PROGRESS.md`: updated Phase B2 status.
+
+---
+
+## 4. Exact Commands to Run
 
 ```bash
-# 1. Navigate to backend directory
+# 1. Run all unit and smoke tests (no database required)
 cd backend
-
-# 2. Install pinned dependencies
-npm install
-
-# 3. Audit for security vulnerabilities
-npm audit
-
-# 4. Initialize local development environment (generates backend/.env with fresh keys)
-npm run setup
-
-# 5. Run unit and smoke tests (no database required)
 npm test
 
-# 6. Run database model and index integration tests (in-memory MongoDB)
+# 2. Run all database integration tests (uses in-memory MongoDB)
 npm run test:integration
 
-# 7. Start the backend server (using your MongoDB connection string in backend/.env)
-npm start
+# 3. Check for security vulnerabilities
+npm audit
+
+# 4. Start the backend development server
+npm run dev
+# (Keep this server running in terminal 1)
+
+# 5. In a second terminal, run the manual verification check scripts from workspace root:
+node scripts/auth-check.js
+node scripts/login-attack.js
+
+# 6. Test support scripts if desired:
+cd backend
+npm run support:unlock -- test@example.com
+npm run support:reset-password -- test@example.com
 ```

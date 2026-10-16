@@ -9,7 +9,9 @@
     "dev": "node --env-file=.env --watch src/server.js",
     "test": "node --test tests/unit/**/*.test.js tests/smoke/**/*.test.js",
     "test:integration": "node --test tests/integration/**/*.test.js",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "support:reset-password": "node --env-file=.env scripts/reset-password.js",
+    "support:unlock": "node --env-file=.env scripts/unlock-account.js"
   },
   "dependencies": {
     "cookie-parser": "1.4.7",

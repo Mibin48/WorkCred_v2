@@ -5,8 +5,8 @@
 | Major Phase | Sub-Phase | Description | Status | Last Tag | Known Bugs | Next Steps |
 |---|---|---|---|---|---|---|
 | **Phase 1: System Design** | **1** | System Design & Docs Context Pack v3.2 | **DONE** | `PHASE1-final` | None | Start Phase 2 (Backend Foundation B1) |
-| **Phase 2: Backend** | **B1** | Express Foundation, Config & Database Connection | Code written (Tests NOT yet run by user) | `PHASE1-final` | None | Run test suite & verify Atlas ready |
-| | **B2** | Models, Schemas & Indexes | Not Started | — | — | Mongoose schemas & indexes |
+| **Phase 2: Backend** | **B1** | Express Foundation, Config & Database Connection | **DONE** (Accepted & Working) | `PHASE1-final` | None | Proceeded to B2 |
+| | **B2** | Auth and Sessions (Backend Only: AUTH-1 to AUTH-10) | Code written (Tests NOT yet run by user) | — | None | Run unit/smoke, integration, and check scripts |
 | | **B3** | Auth, Sessions & Access/Refresh JWT (`wc_rt`) | Not Started | — | — | Sign-up, login, refresh rotation |
 | | **B4** | Search, Jobs & Bookings State Machine | Not Started | — | — | Job postings & direct bookings |
 | | **B5** | Handshake & Encrypted Code Lifecycle (AES-256-GCM) | Not Started | — | — | Start/Finish codes & attempts limiter |

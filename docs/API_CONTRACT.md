@@ -25,26 +25,31 @@
 
 > **API Headers Rule:** All API responses under `/api/v1/*` are served with `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate`. Errors never leak stack traces. Invalid JSON payloads return `400 BAD_JSON`. Unmatched routes return `404 NOT_FOUND`.
 
+### Frontend Integration Rules (Critical)
+1. **One Refresh At A Time:** When access token expires, frontend must perform at most one refresh request concurrently. Concurrent calls will trigger family revocation (`SESSION_INVALID`).
+2. **Send Header:** All requests to `POST /auth/refresh` and `POST /auth/logout` MUST include `X-Requested-With: WorkCred`.
+3. **Never Mix Hostnames:** Never mix `localhost` and `127.0.0.1` in URLs during development; cookies set on `localhost` will not be attached to requests sent to `127.0.0.1`.
+
 ---
 
 ## 1. Authentication (`/auth`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `POST` | `/auth/signup` | Register new customer or worker | Public | Body: `role`, `name`, `email`, `phone`, `password`. Email lowercase unique. Phone non-unique contact. |
-| `POST` | `/auth/login` | Authenticate using email and password | Public | Body: `email`, `password`, `role`. Role verified after password. Sets `wc_rt` cookie. |
-| `POST` | `/auth/refresh` | Silent token refresh via rotating cookie | Public | Reads `wc_rt` cookie. Requires header `X-Requested-With: WorkCred`. Returns new access token. |
-| `POST` | `/auth/logout` | Revoke active refresh session and clear cookie | Logged in | Requires header `X-Requested-With: WorkCred`. Clears `wc_rt` cookie. |
-| `POST` | `/auth/password/change` | Update password with old password verification | Logged in | Body: `currentPassword`, `newPassword`. Increments `tokenVersion` to invalidate all sessions. |
+| Method | Endpoint | Description | Access | Status | Request Body | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `POST` | `/auth/signup` | Register new worker or customer | Public | 201 | `{ role, name, email, phone, password }` | `{ user, accessToken, expiresIn: 900 }` + `wc_rt` cookie | `VALIDATION_ERROR`, `WEAK_PASSWORD`, `EMAIL_TAKEN`, `TOO_MANY_REQUESTS` |
+| `POST` | `/auth/login` | Authenticate email and password | Public | 200 | `{ email, password, role }` | `{ user, accessToken, expiresIn: 900 }` + `wc_rt` cookie | `VALIDATION_ERROR`, `INVALID_CREDENTIALS`, `ROLE_MISMATCH`, `ACCOUNT_DISABLED`, `ACCOUNT_LOCKED`, `TOO_MANY_REQUESTS` |
+| `POST` | `/auth/refresh` | Rotate refresh token | Public (Cookie + Header) | 200 | *(none)* (reads `wc_rt` cookie) | `{ accessToken, expiresIn: 900 }` + rotated `wc_rt` cookie | `BAD_ORIGIN`, `UNAUTHORIZED`, `SESSION_INVALID`, `SESSION_EXPIRED`, `ACCOUNT_DISABLED` |
+| `POST` | `/auth/logout` | Revoke session and clear cookie | Public (Cookie + Header) | 200 | *(none)* (reads `wc_rt` cookie) | `{}` + cleared `wc_rt` cookie | `BAD_ORIGIN` |
+| `POST` | `/auth/password/change` | Change password and invalidate other sessions | Logged in | 200 | `{ currentPassword, newPassword }` | `{ accessToken, expiresIn: 900 }` + fresh `wc_rt` cookie | `UNAUTHORIZED`, `VALIDATION_ERROR`, `INVALID_CREDENTIALS`, `WEAK_PASSWORD` |
 
 ---
 
 ## 2. Users (`/users`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `GET` | `/users/me` | Fetch active user profile and account details | Logged in | Includes profile completeness status computed on server. |
-| `PATCH` | `/users/me` | Update personal profile details | Logged in | Body: bio, skills, rates, localityKey, radiusKm, calendar. Contact blocked on bio. |
+| Method | Endpoint | Description | Access | Status | Response Data | Notes |
+|---|---|---|---|---|---|---|
+| `GET` | `/users/me` | Fetch active user's own profile | Logged in | 200 | `{ id, role, name, email, phone, photoUrl, profileComplete, mustChangePassword }` | Returns user's own data only. Never leaks passwordHash, lockUntil, lockLevel, failedLoginCount, or tokenVersion. |
+| `PATCH` | `/users/me` | Update personal profile details | Logged in | 200 | `{ ...user }` | Out of scope for B2. |
 
 ---
 
