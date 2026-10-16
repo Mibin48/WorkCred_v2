@@ -11,6 +11,8 @@ import { formatSuccess, formatError, ErrorCodes } from './utils/errors.js';
 import { createAuthMiddleware } from './middleware/auth.js';
 import { createAuthRouter } from './routes/auth.js';
 import { createUsersRouter } from './routes/users.js';
+import { createMetaRouter } from './routes/meta.js';
+import { createUploadsRouter } from './routes/uploads.js';
 
 export function createApp(config = {}) {
   const app = express();
@@ -94,13 +96,17 @@ export function createApp(config = {}) {
     return res.status(503).json(formatError(ErrorCodes.SERVICE_UNAVAILABLE, 'Database connection is not ready'));
   });
 
-  // Mount Auth and Users routers
+  // Mount Routers
   const authMiddleware = createAuthMiddleware(config);
   const authRouter = createAuthRouter(config, authMiddleware);
   const usersRouter = createUsersRouter(config, authMiddleware);
+  const metaRouter = createMetaRouter(config, authMiddleware);
+  const uploadsRouter = createUploadsRouter(config, authMiddleware);
 
   apiRouter.use('/auth', authRouter);
   apiRouter.use('/users', usersRouter);
+  apiRouter.use('/meta', metaRouter);
+  apiRouter.use('/uploads', uploadsRouter);
 
   app.use('/api/v1', apiRouter);
 

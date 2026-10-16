@@ -31,28 +31,36 @@ Customers and workers registered on the platform.
   localityKey: String,
   isActive: Boolean,        // default true
   // Worker-specific attributes:
-  skills: [String],         // 1 to 6 skills
-  mainSkill: String,
-  hourlyRate: Number,
-  dailyRate: Number,
-  bio: String,
-  radiusKm: Number,         // default 5, max 10
+  skills: [String],         // 1 to 6 skills (from 11 recognized options)
+  mainSkill: String,        // exactly one isMain
+  hourlyRate: Number,       // integer 50 to 100000
+  dailyRate: Number,        // integer 50 to 100000
+  bio: String,              // max 200 chars, no contact info
+  radiusKm: Number,         // integer 1 to 10
   calendar: {
-    weekly: [{
-      day: String,          // 'Monday', 'Tuesday', ...
-      slot: String          // 'Off' | 'Morning' | 'Afternoon' | 'Evening' | 'Full day'
-    }],
-    blockedDates: [Date]
+    weekly: {               // 'off' | 'morning' | 'afternoon' | 'evening' | 'full'
+      mon: String,
+      tue: String,
+      wed: String,
+      thu: String,
+      fri: String,
+      sat: String,
+      sun: String
+    },
+    blockedDates: [{        // Max 60, sorted ascending YYYY-MM-DD
+      date: String,         // 'YYYY-MM-DD'
+      reason: String        // max 60 chars, no contact info
+    }]
   },
   passportStats: {
-    jobs: Number,
-    avgRating: Number,
-    totalHours: Number,
-    topSkills: [String]
+    jobs: Number,           // starts at 0
+    avgRating: Number,      // starts at 0
+    totalHours: Number,     // starts at 0
+    topSkills: [String]     // starts at []
   },
   passportHead: {
-    seq: Number,
-    hash: String
+    seq: Number,            // starts at 0
+    hash: String            // starts at 64 zeros ('0000...0000')
   },
   defaultMaskEmployerNames: Boolean, // default true
   penaltyCounters: {

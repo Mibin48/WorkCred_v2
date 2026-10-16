@@ -5,7 +5,7 @@ import { logger, maskEmail } from './logger.js';
  * Only IDs and masked emails are recorded.
  * Passwords, tokens, cookies, codes, and request bodies are NEVER logged.
  * 
- * @param {'signup' | 'login' | 'login_failed' | 'refresh_reuse' | 'password_changed'} eventType 
+ * @param {'signup' | 'login' | 'login_failed' | 'refresh_reuse' | 'password_changed' | 'profile_updated' | 'upload_signed'} eventType 
  * @param {object} meta 
  * @param {string} [meta.userId]
  * @param {string} [meta.email]
@@ -13,6 +13,7 @@ import { logger, maskEmail } from './logger.js';
  * @param {string} [meta.ip]
  * @param {string} [meta.reason]
  * @param {string} [meta.familyId]
+ * @param {string[]} [meta.changedFields]
  */
 export function logAuditEvent(eventType, meta = {}) {
   const auditPayload = {
@@ -27,6 +28,7 @@ export function logAuditEvent(eventType, meta = {}) {
   if (meta.ip) auditPayload.ip = meta.ip;
   if (meta.reason) auditPayload.reason = meta.reason;
   if (meta.familyId) auditPayload.familyId = meta.familyId;
+  if (Array.isArray(meta.changedFields)) auditPayload.changedFields = meta.changedFields;
 
   logger.info(auditPayload, `AUDIT_EVENT: ${eventType}`);
 }

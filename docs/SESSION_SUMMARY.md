@@ -1,8 +1,44 @@
-# Session Summary: Phase B2 (Auth and Sessions - Backend Only)
+# Session Summary: Phase B3 (Profiles, Calendar, and Signed Uploads)
 
 **Date:** 2026-10-16  
-**Phase Completed:** Phase B2 (Authentication, Sessions, Access/Refresh JWT, Passwords & Lockout)  
-**Status:** Code Written & Tested (All 110 unit/smoke and 19 integration tests passing; check scripts verified)
+**Phase Completed:** Phase B3 (Profiles, Calendar, Location Privacy, Signed Uploads - Backend Only)  
+**Status:** Code Written & Ready for Verification (All 121 unit/smoke and 30 integration tests written)
+
+---
+
+## 1. What Was Built in Phase B3
+
+### A. Core Profile Rules & Validation Engine (`shared/`)
+1. **Profile Rules (`shared/profileRules.js`):**
+   - Standard 11 skills: `helper`, `electrician`, `plumber`, `mason`, `painter`, `carpenter`, `cook`, `cleaner`, `driver`, `vendor`, `other`.
+   - Weekly slot options: `off`, `morning`, `afternoon`, `evening`, `full`.
+   - Limits: `maxSkills: 6`, `minRate: 50`, `maxRate: 100000`, `maxBioLength: 200`, `minRadiusKm: 1`, `maxRadiusKm: 10`, `maxBlockedDates: 60`.
+   - Pure function `isProfileComplete(user)`:
+     - Worker complete when: `name`, `phone`, at least 1 skill with exactly 1 designated as main, `hourlyRate` or `dailyRate` > 0, recognized `localityKey`, and `radiusKm` between 1 and 10.
+     - Customer complete when: `name`, `phone`, and recognized `localityKey`.
+2. **Calendar Rules (`shared/calendarRules.js`):**
+   - Pure function `isSlotAvailable(calendar, dateTime)` evaluating weekday pattern vs. blocked dates in Asia/Kolkata timezone (UTC+5:30).
+   - Exact time slot boundaries: `morning` (06:00 to 12:00), `afternoon` (12:00 to 17:00), `evening` (17:00 to 21:00), `full` (06:00 to 21:00), `off` (never). Blocked dates always win over the weekly schedule.
+3. **Profile Validators (`shared/profileValidators.js`):**
+   - Location validation within India geographic bounds (lat: 6 to 38, lng: 68 to 98). Auto-resolves nearest locality within 25 km if `localityKey` not sent, or prompts `CHOOSE_AREA`.
+   - Blocked date validation: today or later in India time, no more than 365 days ahead, no duplicates, max 60 dates, reasons passed through `containsContactInfo`.
+   - Bio validation: max 200 chars, passed through `containsContactInfo` to reject phone numbers, emails, handles, or URLs.
+   - Cloudinary photo URL validation: empty string or strict HTTPS URL matching `res.cloudinary.com/<cloudName>/image/upload/.../workcred/<NODE_ENV>/<userId>/avatar/...`.
+   - Mass-assignment and role-based field restrictions: rejects unknown and forbidden fields with 400 `FORBIDDEN_FIELD`; rejects worker fields sent by customers with 400 `FIELD_NOT_ALLOWED_FOR_ROLE`.
+
+### B. Endpoints Mounted under `/api/v1` (`backend/src`)
+1. `GET /api/v1/meta`: Authenticated. Returns skills list, sanitized localities (`key`, `name`, `cityKey` — **never** coordinates), weekly slot options, and system limits.
+2. `GET /api/v1/users/me`: Returns owner's profile with worker or customer fields. Server dynamically recomputes `profileComplete`. Never returns coordinates.
+3. `PATCH /api/v1/users/me`: Authenticated partial update. Sanitizes updates, recomputes `profileComplete`, saves to MongoDB, and logs audit event `profile_updated` with changed field names only.
+4. `POST /api/v1/uploads/sign`: Authenticated. Generates Cloudinary direct browser upload signature (SHA-1 over sorted parameters with API secret) locked to `workcred/<NODE_ENV>/<userId>/avatar`. Returns 503 `UPLOADS_DISABLED` when Cloudinary env vars are missing. Rate limited to 20/hr per user.
+
+### C. Manual Verification Script (`scripts/profile-check.js`)
+- Refuses non-local hosts.
+- Creates throwaway worker and customer, patches profiles step-by-step verifying `profileComplete` transitions from false to true.
+- Tests rejection of forbidden fields and customer sending worker fields.
+- Verifies calendar sorting and blocked dates.
+- Verifies location coordinates are privately stored and never returned in API responses.
+- If Cloudinary is configured on the server, uploads a tiny PNG and saves `photoUrl`; otherwise prints SKIPPED.
 
 ---
 

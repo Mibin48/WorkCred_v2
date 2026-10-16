@@ -16,7 +16,11 @@ export function assertNoSensitiveFields(target, forbiddenKeys = [
   'lockLevel',
   'failedLoginCount',
   'tokenHash',
-  'replacedByHash'
+  'replacedByHash',
+  'location',
+  'coordinates',
+  'lat',
+  'lng'
 ]) {
   const violations = [];
 

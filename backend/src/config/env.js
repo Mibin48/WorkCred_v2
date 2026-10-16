@@ -101,6 +101,20 @@ export function validateEnv(envSource = process.env) {
   const rateLimitEnabledStr = envSource.RATE_LIMIT_ENABLED.trim().toLowerCase();
   const rateLimitEnabled = rateLimitEnabledStr === 'true' || rateLimitEnabledStr === '1';
 
+  // Optional Cloudinary variables: all three or none
+  const cName = envSource.CLOUDINARY_CLOUD_NAME ? String(envSource.CLOUDINARY_CLOUD_NAME).trim() : '';
+  const cKey = envSource.CLOUDINARY_API_KEY ? String(envSource.CLOUDINARY_API_KEY).trim() : '';
+  const cSecret = envSource.CLOUDINARY_API_SECRET ? String(envSource.CLOUDINARY_API_SECRET).trim() : '';
+
+  const cCount = (cName ? 1 : 0) + (cKey ? 1 : 0) + (cSecret ? 1 : 0);
+  if (cCount > 0 && cCount < 3) {
+    const missingCloudinary = [];
+    if (!cName) missingCloudinary.push('CLOUDINARY_CLOUD_NAME');
+    if (!cKey) missingCloudinary.push('CLOUDINARY_API_KEY');
+    if (!cSecret) missingCloudinary.push('CLOUDINARY_API_SECRET');
+    invalid.push(`Cloudinary configuration incomplete. Missing: ${missingCloudinary.join(', ')}`);
+  }
+
   if (invalid.length > 0) {
     throw new Error(`Environment validation failed. Invalid variables: ${invalid.join(', ')}`);
   }
@@ -115,6 +129,9 @@ export function validateEnv(envSource = process.env) {
     CODES_ENC_KEY: envSource.CODES_ENC_KEY,
     LOG_LEVEL: logLevel,
     TRUST_PROXY: trustProxy,
-    RATE_LIMIT_ENABLED: rateLimitEnabled
+    RATE_LIMIT_ENABLED: rateLimitEnabled,
+    CLOUDINARY_CLOUD_NAME: cName || null,
+    CLOUDINARY_API_KEY: cKey || null,
+    CLOUDINARY_API_SECRET: cSecret || null
   };
 }

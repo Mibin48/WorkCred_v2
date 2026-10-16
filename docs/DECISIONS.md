@@ -54,3 +54,16 @@ This document records key architectural, security, and product design decisions 
 ### 11. Refresh Token HMAC Storage and Family Revocation (Phase B2)
 - **Decision:** Refresh tokens are generated as 64-character random opaque hex strings and stored exclusively as keyed HMAC-SHA256 digests (`tokenHash`) using `JWT_REFRESH_SECRET`. Tokens rotate on every refresh. Replaying an already-consumed refresh token immediately revokes the entire session family (`revokedAt = now`) and returns `401 SESSION_INVALID`.
 - **Rationale:** Defense against cookie theft and replay attacks while ensuring compromised or stolen tokens cannot maintain silent refresh access.
+
+### 12. Server-Computed Profile Completeness (Phase B3)
+- **Decision:** Profile completeness (`profileComplete`) is evaluated strictly by the server via pure function `isProfileComplete()` on every profile modification and profile fetch, never accepted from client inputs. Worker fields start empty with no fake defaults.
+- **Rationale:** Prevents spoofed onboarding bypasses; ensures workers only appear in booking and matching pipelines when required skills, rates, locality, and radius are actually established.
+
+### 13. Location Privacy and Exact Coordinate Secrecy (Phase B3)
+- **Decision:** Exact GPS coordinates submitted by users (`{ lat, lng }`) within India bounds (lat 6-38, lng 68-98) are stored privately as GeoJSON points on the User document for internal radius queries, but are strictly scrubbed from all API responses (even for the owner). Callers receive only `localityKey`, `localityName`, and `hasExactLocation: true/false`. If coordinates are provided without a `localityKey`, the system automatically resolves the nearest locality within 25 km or prompts `CHOOSE_AREA`.
+- **Rationale:** Safeguards worker and customer home locations against stalkerware, scraped geolocations, and frontend coordinate exposure.
+
+### 14. Server-Signed Direct Browser Uploads to Cloudinary (Phase B3)
+- **Decision:** Direct uploads to Cloudinary are authenticated via server-signed requests without including any third-party Cloudinary SDK. Signatures are computed using SHA-1 over sorted parameters with the API secret. Upload paths are rigidly locked server-side to `workcred/<NODE_ENV>/<userId>/avatar`. The server rejects avatar photo URLs that do not strictly target the authenticated user's assigned folder. If Cloudinary environment variables are absent, `/uploads/sign` responds with HTTP 503 `UPLOADS_DISABLED` without breaking profile functionality.
+- **Rationale:** Zero server bandwidth or RAM consumed streaming binary photos, zero leakage of API secrets, and bulletproof user folder tenancy isolation.
+

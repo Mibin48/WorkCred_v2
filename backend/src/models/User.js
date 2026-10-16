@@ -103,28 +103,24 @@ const userSchema = new mongoose.Schema(
     },
     radiusKm: {
       type: Number,
-      default: 5,
-      min: 1,
-      max: 10
+      default: null
     },
     calendar: {
-      weekly: [
+      weekly: {
+        mon: { type: String, enum: ['off', 'morning', 'afternoon', 'evening', 'full'], default: 'full' },
+        tue: { type: String, enum: ['off', 'morning', 'afternoon', 'evening', 'full'], default: 'full' },
+        wed: { type: String, enum: ['off', 'morning', 'afternoon', 'evening', 'full'], default: 'full' },
+        thu: { type: String, enum: ['off', 'morning', 'afternoon', 'evening', 'full'], default: 'full' },
+        fri: { type: String, enum: ['off', 'morning', 'afternoon', 'evening', 'full'], default: 'full' },
+        sat: { type: String, enum: ['off', 'morning', 'afternoon', 'evening', 'full'], default: 'full' },
+        sun: { type: String, enum: ['off', 'morning', 'afternoon', 'evening', 'full'], default: 'full' }
+      },
+      blockedDates: [
         {
-          day: {
-            type: String,
-            enum: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-          },
-          slot: {
-            type: String,
-            enum: ['Off', 'Morning', 'Afternoon', 'Evening', 'Full day'],
-            default: 'Full day'
-          }
+          date: { type: String, required: true },
+          reason: { type: String, default: '', maxLength: 60 }
         }
-      ],
-      blockedDates: {
-        type: [Date],
-        default: []
-      }
+      ]
     },
     passportStats: {
       jobs: { type: Number, default: 0 },
@@ -134,7 +130,7 @@ const userSchema = new mongoose.Schema(
     },
     passportHead: {
       seq: { type: Number, default: 0 },
-      hash: { type: String, default: null }
+      hash: { type: String, default: '0'.repeat(64) }
     },
     defaultMaskEmployerNames: {
       type: Boolean,

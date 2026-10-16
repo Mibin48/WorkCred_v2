@@ -48,8 +48,16 @@
 
 | Method | Endpoint | Description | Access | Status | Response Data | Notes |
 |---|---|---|---|---|---|---|
-| `GET` | `/users/me` | Fetch active user's own profile | Logged in | 200 | `{ id, role, name, email, phone, photoUrl, profileComplete, mustChangePassword }` | Returns user's own data only. Never leaks passwordHash, lockUntil, lockLevel, failedLoginCount, or tokenVersion. |
-| `PATCH` | `/users/me` | Update personal profile details | Logged in | 200 | `{ ...user }` | Out of scope for B2. |
+| `GET` | `/users/me` | Fetch active user's own profile | Logged in | 200 | `{ user: { id, role, name, email, phone, photoUrl, localityKey, localityName, hasExactLocation, profileComplete, mustChangePassword, ...workerFields } }` | Returns caller's own profile with worker fields if role === 'worker'. Never leaks passwordHash, lockUntil, lockLevel, failedLoginCount, tokenVersion, or exact coordinates. |
+| `PATCH` | `/users/me` | Update personal profile details | Logged in | 200 | `{ user: { ... } }` | Partial update of caller's own profile. Fields for all: `name`, `phone`, `localityKey`, `location` ({ lat, lng }), `photoUrl`. Worker only: `skills`, `hourlyRate`, `dailyRate`, `bio`, `radiusKm`, `calendar`. Server recomputes `profileComplete`. Forbidden/unknown fields return 400 `FORBIDDEN_FIELD`. Customer sending worker field returns 400 `FIELD_NOT_ALLOWED_FOR_ROLE`. |
+
+---
+
+## 2.1 Metadata (`/meta`)
+
+| Method | Endpoint | Description | Access | Status | Response Data | Notes |
+|---|---|---|---|---|---|---|
+| `GET` | `/meta` | Profile metadata, options & limits | Logged in | 200 | `{ skills, localities, weeklyOptions, limits }` | Skills (11 standard), sanitized localities (key, name, cityKey - NEVER coordinates), weekly slot options (off, morning, afternoon, evening, full), system limits (maxSkills: 6, maxBioLength: 200, minRadiusKm: 1, maxRadiusKm: 10, maxBlockedDates: 60). |
 
 ---
 
@@ -136,9 +144,9 @@
 
 ## 10. Uploads (`/uploads`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `POST` | `/uploads/sign` | Generate server-signed Cloudinary direct upload payload | Logged in | Generates signature and timestamp bound to user folder. |
+| Method | Endpoint | Description | Access | Status | Request Body | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `POST` | `/uploads/sign` | Generate server-signed Cloudinary direct browser upload signature | Logged in | 200 | `{ purpose: "avatar" }` | `{ cloudName, apiKey, timestamp, folder, publicId, signature, uploadUrl }` | `VALIDATION_ERROR`, `UPLOADS_DISABLED` (503 if Cloudinary env vars missing), `TOO_MANY_REQUESTS` (20/hr limit) |
 
 ---
 

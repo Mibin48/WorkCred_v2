@@ -599,25 +599,37 @@ describe('backend/tests/integration/auth.integration.test.js (MongoDB In-Memory 
 
     const routes = [
       { method: 'GET', path: '/api/v1/health', expected: { visitor: 200, customer: 200, worker: 200 } },
-      { method: 'GET', path: '/api/v1/users/me', expected: { visitor: 401, customer: 200, worker: 200 } }
+      { method: 'GET', path: '/api/v1/meta', expected: { visitor: 401, customer: 200, worker: 200 } },
+      { method: 'GET', path: '/api/v1/users/me', expected: { visitor: 401, customer: 200, worker: 200 } },
+      { method: 'PATCH', path: '/api/v1/users/me', body: { name: 'Matrix Renamed' }, expected: { visitor: 401, customer: 200, worker: 200 } },
+      { method: 'POST', path: '/api/v1/uploads/sign', body: { purpose: 'avatar' }, expected: { visitor: 401, customer: 503, worker: 503 } }
     ];
 
     for (const route of routes) {
+      const payload = route.body ? JSON.stringify(route.body) : undefined;
+      const baseHeaders = route.body ? { 'Content-Type': 'application/json' } : {};
+
       // Visitor
-      const resVisitor = await fetch(`${baseUrl}${route.path}`, { method: route.method });
+      const resVisitor = await fetch(`${baseUrl}${route.path}`, {
+        method: route.method,
+        headers: baseHeaders,
+        body: payload
+      });
       assert.equal(resVisitor.status, route.expected.visitor, `Visitor on ${route.path}`);
 
       // Customer
       const resCustomer = await fetch(`${baseUrl}${route.path}`, {
         method: route.method,
-        headers: { 'Authorization': `Bearer ${custToken}` }
+        headers: { ...baseHeaders, 'Authorization': `Bearer ${custToken}` },
+        body: payload
       });
       assert.equal(resCustomer.status, route.expected.customer, `Customer on ${route.path}`);
 
       // Worker
       const resWorker = await fetch(`${baseUrl}${route.path}`, {
         method: route.method,
-        headers: { 'Authorization': `Bearer ${workToken}` }
+        headers: { ...baseHeaders, 'Authorization': `Bearer ${workToken}` },
+        body: payload
       });
       assert.equal(resWorker.status, route.expected.worker, `Worker on ${route.path}`);
     }
