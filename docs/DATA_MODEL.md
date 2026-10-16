@@ -12,14 +12,15 @@ Customers and workers registered on the platform.
 ```javascript
 {
   _id: ObjectId,
-  email: String,            // Unique, lowercase, indexed
-  phone: String,            // Required contact field, not unique
+  email: String,            // Unique, lowercase, trimmed, indexed
+  phone: String,            // Required 10 digits (6-9 first digit), NOT unique
   role: String,             // 'worker' | 'customer' (immutable once created)
   name: String,
   passwordHash: String,     // scrypt hash + salt (select: false)
   failedLoginCount: Number, // default 0
   lockUntil: Date,
   lockLevel: Number,        // default 0 (backoff levels)
+  tokenVersion: Number,     // default 0 (incremented on logout/password change)
   mustChangePassword: Boolean,
   lastLoginAt: Date,
   photoUrl: String,
@@ -57,7 +58,7 @@ Customers and workers registered on the platform.
   penaltyCounters: {
     cancellations: Number
   },
-  profileComplete: Boolean,
+  profileComplete: Boolean, // Computed server-side on save
   createdAt: Date,
   updatedAt: Date
 }
@@ -105,7 +106,7 @@ Open work postings posted by customers for nearby workers.
   hours: Number,            // 1 to 12
   startAt: Date,
   offeredRate: Number,
-  description: String,      // max 300 chars
+  description: String,      // max 300 chars, contact blocked
   location: {
     type: "Point",
     coordinates: [Number]
@@ -136,22 +137,22 @@ Open work postings posted by customers for nearby workers.
   scheduledAt: Date,
   hours: Number,            // 1 to 12
   status: String,           // 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
-  startCodeEnc: String,     // AES-256-GCM encrypted (select: false)
-  finishCodeEnc: String,    // AES-256-GCM encrypted (select: false)
+  startCodeEnc: String,     // AES-256-GCM encrypted "v1:iv:tag:cipher", select: false
+  finishCodeEnc: String,    // AES-256-GCM encrypted "v1:iv:tag:cipher", select: false
   startCodeAttempts: Number,
   finishCodeAttempts: Number,
   codeLockUntil: Date,
   startedAt: Date,
   startedGeo: {
     type: "Point",
-    coordinates: [Number]
+    coordinates: [Number]   // null if not provided
   },
-  farFromJob: Boolean,
+  farFromJob: Boolean,      // null if coords not provided; true if > 500m; false if <= 500m
   finishedAt: Date,
   hoursWorked: Number,
   paidCash: Boolean,
   rating: Number,           // 1 to 5
-  comment: String,          // max 200 chars
+  comment: String,          // max 200 chars, contact blocked
   source: String,           // 'job' | 'direct' | 'freenow'
   locationSnapshot: {
     type: "Point",
@@ -185,14 +186,15 @@ Append-only, cryptographically chained verified work records.
   hours: Number,
   rating: Number,
   comment: String,
+  employerName: String,     // Real legal name (private, covered by cryptographic hash)
   employerDisplay: {
     name: String,
-    masked: String          // e.g. "R*** K."
+    masked: String          // e.g. "R*** K." (derived at read time)
   },
   maskEmployerName: Boolean,// default true
-  visible: Boolean,         // worker visibility toggle, default true
-  prevHash: String,         // SHA-256 hash of previous entry (or GENESIS)
-  hash: String,             // SHA-256 hash of canonical entry contents
+  visible: Boolean,         // worker visibility toggle, default true (not in hash)
+  prevHash: String,         // SHA-256 hex string of previous entry (or 64 zeros)
+  hash: String,             // SHA-256 hex string of canonical array
   createdAt: Date
 }
 ```
@@ -237,6 +239,7 @@ Compass price distribution snapshots per skill and area.
   _id: ObjectId,
   skill: String,
   localityKey: String,
+  cityKey: String,
   p25: Number,
   median: Number,
   p75: Number,
@@ -247,6 +250,7 @@ Compass price distribution snapshots per skill and area.
 ```
 **Indexes:**
 - `{ skill: 1, localityKey: 1 }` (unique)
+- `{ skill: 1, cityKey: 1 }`
 
 ---
 
@@ -258,7 +262,7 @@ Work showcase feed items with photos and optional job linkage.
   _id: ObjectId,
   workerId: ObjectId,
   skill: String,
-  caption: String,          // max 140 chars
+  caption: String,          // max 140 chars, contact blocked
   afterUrl: String,         // required
   beforeUrl: String,        // optional
   bookingId: ObjectId,      // optional link to verified job
@@ -320,7 +324,7 @@ Moderation submissions sent to the support queue.
   targetType: String,       // 'worker' | 'customer' | 'post' | 'booking'
   targetId: ObjectId,
   reason: String,
-  note: String,             // max 200 chars
+  note: String,             // max 200 chars, contact blocked
   reporterId: ObjectId,     // optional
   ipHash: String,
   createdAt: Date
@@ -351,23 +355,3 @@ Deduplication cache for network retries and duplicate form taps.
 **Indexes:**
 - `{ userId: 1, key: 1, route: 1 }` (unique)
 - `{ createdAt: 1 }` (TTL 24 hours)
-
----
-
-### 13. `pushSubscriptions`
-Stored browser push notification endpoints.
-
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId,
-  endpoint: String,
-  keys: {
-    p256dh: String,
-    auth: String
-  },
-  createdAt: Date
-}
-```
-**Indexes:**
-- `{ endpoint: 1 }` (unique)
