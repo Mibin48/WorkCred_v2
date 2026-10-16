@@ -6,6 +6,7 @@ import { isProfileComplete } from '../../../shared/profileRules.js';
 import { clock } from '../utils/clock.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
 import { User } from '../models/User.js';
+import { getLocalityByKey } from '../../../shared/localities.js';
 
 export function createUsersRouter(config, authMiddleware) {
   const router = express.Router();
@@ -72,6 +73,34 @@ export function createUsersRouter(config, authMiddleware) {
           if (val.blockedDates) user.calendar.blockedDates = val.blockedDates;
         } else {
           user[key] = val;
+        }
+      }
+
+      // Maintain derived fields (G1, G2, G3)
+      if (user.role === 'worker') {
+        // Effective hourly rate
+        user.rateHourlyEffective = (user.hourlyRate && user.hourlyRate > 0)
+          ? user.hourlyRate
+          : (user.dailyRate && user.dailyRate > 0 ? Math.round(user.dailyRate / 8) : 0);
+
+        // Main skill
+        if (Array.isArray(user.skills) && user.skills.length > 0) {
+          if (!user.mainSkill || !user.skills.includes(user.mainSkill)) {
+            user.mainSkill = user.skills[0];
+          }
+        } else {
+          user.mainSkill = null;
+        }
+
+        // Search location (centroid of localityKey, or [0, 0] if no locality)
+        if (user.localityKey) {
+          const loc = getLocalityByKey(user.localityKey);
+          if (loc) {
+            user.searchLocation = {
+              type: 'Point',
+              coordinates: [loc.lng, loc.lat]
+            };
+          }
         }
       }
 

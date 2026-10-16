@@ -53,6 +53,17 @@ const jobSchema = new mongoose.Schema(
         required: true
       }
     },
+    searchLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number], // centroid of locality
+        required: true
+      }
+    },
     localityKey: {
       type: String,
       required: true
@@ -69,6 +80,7 @@ const jobSchema = new mongoose.Schema(
 );
 
 jobSchema.index({ location: '2dsphere' });
+jobSchema.index({ searchLocation: '2dsphere' });
 jobSchema.index({ status: 1, skill: 1, startAt: 1 });
 
 export const Job = mongoose.model('Job', jobSchema);

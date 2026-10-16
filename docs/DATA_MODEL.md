@@ -32,9 +32,14 @@ Customers and workers registered on the platform.
   isActive: Boolean,        // default true
   // Worker-specific attributes:
   skills: [String],         // 1 to 6 skills (from 11 recognized options)
-  mainSkill: String,        // exactly one isMain
+  mainSkill: String,        // exactly one isMain (derived on save)
   hourlyRate: Number,       // integer 50 to 100000
   dailyRate: Number,        // integer 50 to 100000
+  rateHourlyEffective: Number, // derived on save: hourlyRate || round(dailyRate / 8)
+  searchLocation: {         // Centroid of worker's locality (from shared/localities.js)
+    type: "Point",
+    coordinates: [Number]   // [lng, lat]
+  },
   bio: String,              // max 200 chars, no contact info
   radiusKm: Number,         // integer 1 to 10
   calendar: {
@@ -74,8 +79,10 @@ Customers and workers registered on the platform.
 **Indexes:**
 - `{ email: 1 }` (unique)
 - `{ location: "2dsphere" }`
-- `{ role: 1, isActive: 1, skills: 1 }`
+- `{ searchLocation: "2dsphere" }`
+- `{ role: 1, isActive: 1, profileComplete: 1, skills: 1 }`
 - `{ role: 1, "passportStats.avgRating": -1 }`
+- `{ role: 1, rateHourlyEffective: 1 }`
 
 ---
 
@@ -113,11 +120,15 @@ Open work postings posted by customers for nearby workers.
   acceptedCount: Number,    // atomic counter
   hours: Number,            // 1 to 12
   startAt: Date,
-  offeredRate: Number,
+  offeredRate: Number,      // rupees per hour per worker
   description: String,      // max 300 chars, contact blocked
   location: {
     type: "Point",
-    coordinates: [Number]
+    coordinates: [Number]   // Private customer exact coordinates or locality centroid
+  },
+  searchLocation: {
+    type: "Point",
+    coordinates: [Number]   // Centroid of locality
   },
   localityKey: String,
   status: String,           // 'open' | 'filled' | 'cancelled' | 'expired'
@@ -127,6 +138,7 @@ Open work postings posted by customers for nearby workers.
 ```
 **Indexes:**
 - `{ location: "2dsphere" }`
+- `{ searchLocation: "2dsphere" }`
 - `{ status: 1, skill: 1, startAt: 1 }`
 
 ---
@@ -240,13 +252,13 @@ Ephemeral Free Now availability windows for workers.
 ---
 
 ### 7. `rateStats`
-Compass price distribution snapshots per skill and area.
+Compass price distribution snapshots per skill and area (including city aggregations as localityKey `"city:<cityKey>"`).
 
 ```javascript
 {
   _id: ObjectId,
   skill: String,
-  localityKey: String,
+  localityKey: String,      // localityKey OR "city:<cityKey>"
   cityKey: String,
   p25: Number,
   median: Number,
@@ -351,8 +363,10 @@ Deduplication cache for network retries and duplicate form taps.
 {
   _id: ObjectId,
   userId: ObjectId,
-  key: String,
+  key: String,              // 8 to 80 chars
   route: String,
+  requestHash: String,      // SHA-256 of normalized body
+  state: String,            // 'processing' | 'done'
   responseSnapshot: {
     statusCode: Number,
     body: Object

@@ -21,6 +21,10 @@ const bookingSchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    localityKey: {
+      type: String,
+      default: null
+    },
     agreedRate: {
       type: Number,
       required: true

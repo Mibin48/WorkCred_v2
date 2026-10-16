@@ -15,14 +15,21 @@ const idempotencyKeySchema = new mongoose.Schema(
       type: String,
       required: true
     },
+    requestHash: {
+      type: String,
+      required: true
+    },
+    state: {
+      type: String,
+      enum: ['processing', 'done'],
+      default: 'processing'
+    },
     responseSnapshot: {
       statusCode: {
-        type: Number,
-        required: true
+        type: Number
       },
       body: {
-        type: mongoose.Schema.Types.Mixed,
-        required: true
+        type: mongoose.Schema.Types.Mixed
       }
     },
     createdAt: {

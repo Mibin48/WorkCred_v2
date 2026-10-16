@@ -1,16 +1,97 @@
 export const SAMPLE_BASELINES = {
-  helper: { p25: 600, median: 750, p75: 900 },
-  electrician: { p25: 800, median: 1000, p75: 1300 },
-  plumber: { p25: 800, median: 1000, p75: 1250 },
-  mason: { p25: 900, median: 1150, p75: 1400 },
-  painter: { p25: 750, median: 950, p75: 1200 },
-  carpenter: { p25: 850, median: 1100, p75: 1350 },
-  cook: { p25: 700, median: 900, p75: 1150 },
-  cleaner: { p25: 550, median: 700, p75: 850 },
-  driver: { p25: 800, median: 1000, p75: 1200 },
-  vendor: { p25: 600, median: 800, p75: 1000 },
-  other: { p25: 650, median: 850, p75: 1100 }
+  helper: { p25: 75, median: 94, p75: 113 },
+  electrician: { p25: 100, median: 125, p75: 163 },
+  plumber: { p25: 100, median: 125, p75: 156 },
+  mason: { p25: 113, median: 144, p75: 175 },
+  painter: { p25: 94, median: 119, p75: 150 },
+  carpenter: { p25: 106, median: 138, p75: 169 },
+  cook: { p25: 88, median: 113, p75: 144 },
+  cleaner: { p25: 69, median: 88, p75: 106 },
+  driver: { p25: 100, median: 125, p75: 150 },
+  vendor: { p25: 75, median: 100, p75: 125 },
+  other: { p25: 81, median: 106, p75: 138 }
 };
+
+/**
+ * Calculates effective hourly rate:
+ * hourlyRate if > 0, else round(dailyRate / 8).
+ * 
+ * @param {number} hourlyRate 
+ * @param {number} dailyRate 
+ * @returns {number}
+ */
+export function hourlyEquivalent(hourlyRate, dailyRate) {
+  if (typeof hourlyRate === 'number' && hourlyRate > 0) {
+    return Math.round(hourlyRate);
+  }
+  if (typeof dailyRate === 'number' && dailyRate > 0) {
+    return Math.round(dailyRate / 8);
+  }
+  return 0;
+}
+
+/**
+ * Returns fair price label for a rate given p25 and p75.
+ * - 'low' if rate < p25
+ * - 'high' if rate > p75
+ * - 'fair' if p25 <= rate <= p75
+ * 
+ * @param {number} rate 
+ * @param {{ p25: number, p75: number }} bounds 
+ * @returns {'low'|'fair'|'high'}
+ */
+export function fairLabel(rate, bounds) {
+  if (typeof rate !== 'number' || !bounds) return 'fair';
+  if (rate < bounds.p25) return 'low';
+  if (rate > bounds.p75) return 'high';
+  return 'fair';
+}
+
+/**
+ * Selects source row between locality, city, and sample baseline.
+ * Tier 1: locality if sampleSize >= 5
+ * Tier 2: city if sampleSize >= 5
+ * Tier 3: baseline
+ * 
+ * @param {object} localityStats 
+ * @param {object} cityStats 
+ * @param {object} baseline 
+ * @returns {{ source: 'locality'|'city'|'baseline', isSample: boolean, data: object }}
+ */
+export function pickSource(localityStats, cityStats, baseline) {
+  if (localityStats && localityStats.sampleSize >= 5) {
+    return {
+      source: 'locality',
+      isSample: false,
+      sampleSize: localityStats.sampleSize,
+      p25: localityStats.p25,
+      median: localityStats.median,
+      p75: localityStats.p75,
+      data: localityStats
+    };
+  }
+  if (cityStats && cityStats.sampleSize >= 5) {
+    return {
+      source: 'city',
+      isSample: false,
+      sampleSize: cityStats.sampleSize,
+      p25: cityStats.p25,
+      median: cityStats.median,
+      p75: cityStats.p75,
+      data: cityStats
+    };
+  }
+  return {
+    source: 'baseline',
+    isSample: true,
+    sampleSize: 0,
+    note: 'Based on sample rates for now',
+    p25: baseline.p25,
+    median: baseline.median,
+    p75: baseline.p75,
+    data: baseline
+  };
+}
 
 /**
  * Calculates percentile from an array of numbers using linear interpolation.
@@ -58,24 +139,7 @@ export function computeRateDistribution(rates) {
 }
 
 /**
- * Resolves Fair Rate Compass guidance using 3-tier fallback (Decision E5, COMP-2):
- * 1. Locality samples (if >= 5 samples)
- * 2. City samples (if >= 5 samples)
- * 3. Sample baseline data (disclaimer: "Based on sample rates for now")
- *
- * @param {{
- *   skill: string,
- *   localitySamples?: number[],
- *   citySamples?: number[]
- * }} query
- * @returns {{
- *   p25: number,
- *   median: number,
- *   p75: number,
- *   tier: 'locality' | 'city' | 'baseline',
- *   sampleSize: number,
- *   disclaimer: string | null
- * }}
+ * Resolves Fair Rate Compass guidance using 3-tier fallback.
  */
 export function resolveCompassRate(query) {
   const { skill, localitySamples = [], citySamples = [] } = query;

@@ -4,7 +4,10 @@ import {
   calculatePercentile,
   computeRateDistribution,
   resolveCompassRate,
-  SAMPLE_BASELINES
+  SAMPLE_BASELINES,
+  hourlyEquivalent,
+  fairLabel,
+  pickSource
 } from '../../../../shared/compassMath.js';
 
 describe('shared/compassMath.js', () => {
@@ -63,5 +66,51 @@ describe('shared/compassMath.js', () => {
     assert.equal(res.median, SAMPLE_BASELINES.electrician.median);
     assert.equal(res.p25, SAMPLE_BASELINES.electrician.p25);
     assert.equal(res.p75, SAMPLE_BASELINES.electrician.p75);
+  });
+
+  describe('B4 Pure Functions (hourlyEquivalent, fairLabel, pickSource)', () => {
+    it('hourlyEquivalent computes hourly if set, else round(daily / 8)', () => {
+      assert.equal(hourlyEquivalent(150, 800), 150);
+      assert.equal(hourlyEquivalent(0, 800), 100);
+      assert.equal(hourlyEquivalent(null, 750), 94); // 750/8 = 93.75 -> 94
+      assert.equal(hourlyEquivalent(null, 500), 63); // 500/8 = 62.5 -> 63
+      assert.equal(hourlyEquivalent(null, null), 0);
+    });
+
+    it('fairLabel boundaries: below p25, equal p25, equal p75, above p75', () => {
+      const bounds = { p25: 100, p75: 200 };
+      assert.equal(fairLabel(99, bounds), 'low');
+      assert.equal(fairLabel(100, bounds), 'fair');
+      assert.equal(fairLabel(150, bounds), 'fair');
+      assert.equal(fairLabel(200, bounds), 'fair');
+      assert.equal(fairLabel(201, bounds), 'high');
+    });
+
+    it('pickSource order: locality >= 5, else city >= 5, else baseline', () => {
+      const locValid = { p25: 10, median: 20, p75: 30, sampleSize: 5 };
+      const locInvalid = { p25: 10, median: 20, p75: 30, sampleSize: 4 };
+      const cityValid = { p25: 12, median: 22, p75: 32, sampleSize: 10 };
+      const cityInvalid = { p25: 12, median: 22, p75: 32, sampleSize: 3 };
+      const baseline = { p25: 15, median: 25, p75: 35 };
+
+      // Locality >= 5 returns locality
+      const r1 = pickSource(locValid, cityValid, baseline);
+      assert.equal(r1.source, 'locality');
+      assert.equal(r1.sampleSize, 5);
+      assert.equal(r1.isSample, false);
+
+      // Locality < 5, City >= 5 returns city
+      const r2 = pickSource(locInvalid, cityValid, baseline);
+      assert.equal(r2.source, 'city');
+      assert.equal(r2.sampleSize, 10);
+      assert.equal(r2.isSample, false);
+
+      // Both < 5 returns baseline
+      const r3 = pickSource(locInvalid, cityInvalid, baseline);
+      assert.equal(r3.source, 'baseline');
+      assert.equal(r3.sampleSize, 0);
+      assert.equal(r3.isSample, true);
+      assert.equal(r3.note, 'Based on sample rates for now');
+    });
   });
 });

@@ -119,7 +119,7 @@ describe('B3 Profiles, Calendar & Uploads Integration Tests', () => {
     assert.equal(patchBody.data.user.profileComplete, true);
     assert.equal(patchBody.data.user.localityKey, LOCALITIES[0].key);
 
-    assertNoSensitiveFields(patchBody);
+    assertNoSensitiveFields(patchBody, { allowPhoneAndEmail: true });
   });
 
   it('Worker profile completeness transitions from false to true when all required fields met', async () => {
@@ -160,7 +160,7 @@ describe('B3 Profiles, Calendar & Uploads Integration Tests', () => {
     patchBody = await patchRes.json();
     assert.equal(patchRes.status, 200);
     assert.equal(patchBody.data.user.profileComplete, true);
-    assertNoSensitiveFields(patchBody);
+    assertNoSensitiveFields(patchBody, { allowPhoneAndEmail: true });
   });
 
   it('Customer sending worker-only fields gets 400 FIELD_NOT_ALLOWED_FOR_ROLE', async () => {
@@ -334,7 +334,7 @@ describe('B3 Profiles, Calendar & Uploads Integration Tests', () => {
     assert.equal(body.data.user.lat, undefined);
     assert.equal(body.data.user.lng, undefined);
 
-    assertNoSensitiveFields(body);
+    assertNoSensitiveFields(body, { allowPhoneAndEmail: true });
 
     const dbUser = await mongoose.model('User').findById(body.data.user.id);
     assert.equal(dbUser.location.type, 'Point');

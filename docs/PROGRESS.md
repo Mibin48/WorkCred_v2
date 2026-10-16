@@ -7,8 +7,8 @@
 | **Phase 1: System Design** | **1** | System Design & Docs Context Pack v3.2 | **DONE** | `PHASE1-final` | None | Start Phase 2 (Backend Foundation B1) |
 | **Phase 2: Backend** | **B1** | Express Foundation, Config & Database Connection | **DONE** (Accepted & Working) | `PHASE1-final` | None | Proceeded to B2 |
 | | **B2** | Auth and Sessions (Backend Only: AUTH-1 to AUTH-10) | **DONE** (Accepted & Working) | — | None | Proceeded to B3 |
-| | **B3** | Profiles, Calendar & Signed Uploads (PROF-1 to PROF-6) | Code written (Tests NOT yet run by user) | — | None | Run unit, integration, and profile-check scripts |
-| | **B4** | Search, Jobs & Bookings State Machine | Not Started | — | — | Job postings & direct bookings |
+| | **B3** | Profiles, Calendar & Signed Uploads (PROF-1 to PROF-6) | **DONE** (Accepted & Working) | — | None | Proceeded to B4 |
+| | **B4** | Search, Fair Rate Compass, Jobs (FIND-1 to FIND-4, COMP-1 to COMP-3, JOB-1 to JOB-7) | Code written (Tests NOT yet run by user) | — | None | Run unit, integration, and b4-check scripts |
 | | **B5** | Handshake & Encrypted Code Lifecycle (AES-256-GCM) | Not Started | — | — | Start/Finish codes & attempts limiter |
 | | **B6** | Passport Append-Only & Hash Integrity Check | Not Started | — | — | Hash chaining & verification service |
 | | **B7** | Fair Rate Compass (3-Tier Fallback) & Free Now | Not Started | — | — | Geo queries & rate percentiles |

@@ -63,67 +63,34 @@
 
 ## 3. Workers (`/workers`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `GET` | `/workers` | Search workers with filters | Logged in | Query: `skill`, `distance`, `rateMin`, `rateMax`, `rating`, `sort`. Masked/approximate only. |
-| `GET` | `/workers/:id` | Fetch public worker profile view | Logged in | Phone number and exact coordinates are strictly omitted. |
-| `GET` | `/workers/:id/passport` | View visible Passport records for worker | Logged in | Returns visible records only with masked employer names. |
-| `GET` | `/workers/:id/passport/verify` | Run tamper-evident chain integrity check | Logged in | Evaluates all records (including private) server-side and reports `"Valid, N records"`. |
+| Method | Endpoint | Description | Access | Status | Query / Body | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `GET` | `/workers` | Search workers with filters and pagination | Logged in (Worker or Customer) | 200 | Query: `skill`, `distanceKm` (1-10, default 5), `minRate`, `maxRate` (rupees/hour), `minRating` (0-5), `sort` (`nearest` \| `rating` \| `price`, default `nearest`), `limit` (1-50, default 20), `cursor` (opaque base64url) | `{ workers: [ { id, name, photoUrl, mainSkill, skills: [name], rate: { hourly, daily, effectiveHourly }, rating, jobsCount, approxDistance: { km, label }, localityName, hasVerifiedHistory, fairRate: { label, isSample } } ], nextCursor }` | `SET_AREA` (400 if caller has no area), `VALIDATION_ERROR` (400), `BAD_CURSOR` (400), `TOO_MANY_REQUESTS` (120 req / 10 min) |
+| `GET` | `/workers/:id` | Fetch public worker profile view | Logged in | 200 | *(none)* | `{ worker: { id, name, photoUrl, mainSkill, skills: [{ skill, isMain }], rate: { hourly, daily, effectiveHourly }, rating, jobsCount, approxDistance: { km, label }, localityName, hasVerifiedHistory, fairRate: { label, isSample }, bio, stats: { jobs, avgRating, totalHours }, availabilitySummary: { weekly: [...], blockedNext14DaysCount }, endorsements: {} } }` | `NOT_FOUND` (404 for unknown, inactive, incomplete, non-worker, or invalid ID format), `TOO_MANY_REQUESTS` (120 req / 10 min) |
+| `GET` | `/workers/:id/passport` | View visible Passport records for worker | Logged in | | Returns visible records only with masked employer names (B5). |
+| `GET` | `/workers/:id/passport/verify` | Run tamper-evident chain integrity check | Logged in | | Evaluates all records server-side and reports `"Valid, N records"` (B5). |
 
 ---
 
 ## 4. Jobs (`/jobs`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `POST` | `/jobs` | Post new open job | Customer | Body: `skill`, `workersNeeded`, `hours`, `startAt`, `offeredRate`, `description`, `location`. |
-| `GET` | `/jobs` | List nearby open jobs matching worker skills | Worker | Returns distance, pay, spots left, start time. |
-| `GET` | `/jobs/mine` | List jobs posted by active customer | Customer | Status list of open, filled, and cancelled jobs. |
-| `POST` | `/jobs/:id/accept` | Accept an open job slot | Worker | Atomic slot decrement. |
-| `POST` | `/jobs/:id/cancel` | Cancel posted job | Customer | Cancels unstarted bookings; workers see cancellation in booking list. |
+Optional header `Idempotency-Key` (8 to 80 chars: letters, digits, dash, underscore) accepted on all mutation endpoints. Finished duplicates replay stored status and body with header `Idempotent-Replay: true`. Concurrent duplicates yield `409 REQUEST_IN_PROGRESS`. Payload mismatch on same key yields `422 KEY_REUSED`.
 
----
-
-## 5. Bookings (`/bookings`)
-
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `POST` | `/bookings` | Request direct booking for a worker | Customer | Body: `workerId`, `date`, `time`, `hours`, `note`. Generates AES-256-GCM encrypted codes. |
-| `GET` | `/bookings` | List active user bookings | Logged in | Actionable counts for tabs (e.g., worker `My work (2)`, customer `Bookings (1)`). |
-| `GET` | `/bookings/:id` | Detailed booking ticket | Participants only | Releases phone number and codes only when confirmed/in-progress. |
-| `POST` | `/bookings/:id/confirm` | Worker accepts pending booking request | Worker | Transitions booking to `confirmed`. |
-| `POST` | `/bookings/:id/start` | Worker submits 4-digit start handshake code | Worker | Body: `code`, `location` (optional). Checks <= 500m distance. Locks on 5 wrong tries. |
-| `POST` | `/bookings/:id/finish` | Customer submits 4-digit finish code and rating | Customer | Body: `code`, `paidCash` (bool), `rating` (1-5), `comment`. Creates Passport record. |
-| `POST` | `/bookings/:id/cancel` | Cancel booking prior to start | Participants only | Permitted only prior to start code verification. |
-| `POST` | `/bookings/:id/report` | Submit problem report during or after booking | Participants only | Private report to support queue; contact blocked. |
-
----
-
-## 6. Work Passport (`/passport`)
-
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `GET` | `/passport/me` | View worker's complete Passport timeline | Worker | Returns all records (visible and hidden), stats, and integrity result. |
-| `PATCH` | `/passport/entries/:id` | Toggle entry visibility or employer name masking | Worker | Body: `visible` (bool), `maskEmployerName` (bool). Does not alter cryptographic hash. |
-
----
-
-## 7. Free Now Availability (`/availability`)
-
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `GET` | `/availability/me` | Check active Free Now window for worker | Worker | Evaluates `expiresAt > now` at query time. |
-| `POST` | `/availability` | Start or extend Free Now window | Worker | Body: `durationHours` (2, 4, or 8). Max 12h extension total. |
-| `DELETE` | `/availability` | Stop active Free Now window | Worker | Closes live window immediately. |
-| `GET` | `/availability/nearby` | View distance-sorted free workers nearby | Customer | Query: `distance` (default 3km, max 5km). Read-time expiry filtered. |
+| Method | Endpoint | Description | Access | Status | Request Body | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `POST` | `/jobs` | Post new open job | Customer (profileComplete required) | 201 | `{ skill, workersNeeded (1-10), hours (1-12), startAt (ISO 8601), offeredRate (50-100000 ₹/hr), description (max 300), localityKey?, location? { lat, lng } }` | `{ job: { id, skill, workersNeeded, acceptedCount, hours, startAt, offeredRate, totalPay, description, localityKey, localityName, status, fairRate: { label, p25, median, p75, source, isSample } } }` | `FORBIDDEN` (403 for workers), `PROFILE_INCOMPLETE` (403), `JOB_LIMIT` (429 if >20 jobs/day), `VALIDATION_ERROR` (400), `INVALID_LOCALITY` (400) |
+| `GET` | `/jobs` | List matching jobs near worker | Worker (profileComplete required) | 200 | Query: `limit` (1-50, default 20), `cursor` | `{ jobs: [ { id, skill, hours, startAt, offeredRate, totalPay, spotsLeft, descriptionExcerpt, approxDistance: { km, label }, localityName, customerDisplay, fairRate: { label } } ], nextCursor }` | `FORBIDDEN` (403 for customers), `PROFILE_INCOMPLETE` (403), `SET_AREA` (400), `INVALID_LIMIT` (400), `BAD_CURSOR` (400) |
+| `GET` | `/jobs/mine` | List customer's posted jobs | Customer | 200 | Query: `limit` (1-50, default 20), `cursor` | `{ jobs: [ { id, skill, workersNeeded, acceptedCount, hours, startAt, offeredRate, totalPay, description, localityKey, localityName, status, acceptedWorkers: [{ id, displayName, bookingId, bookingStatus }] } ], nextCursor }` | `FORBIDDEN` (403 for workers), `INVALID_LIMIT` (400), `BAD_CURSOR` (400) |
+| `POST` | `/jobs/:id/accept` | Accept an open job slot (G6, G7) | Worker (profileComplete required) | 200 | *(none)* | `{ bookingId, status: "confirmed", scheduledAt, hours, agreedRate, jobId }` | `FORBIDDEN` (403 for customers), `PROFILE_INCOMPLETE` (403), `NOT_FOUND` (404), `SKILL_MISMATCH` (403), `TOO_FAR` (403), `JOB_EXPIRED` (409), `JOB_FULL` (409), `NOT_AVAILABLE` (409), `TIME_CLASH` (409), `ALREADY_ACCEPTED` (409) |
+| `POST` | `/jobs/:id/cancel` | Cancel posted job and confirmed bookings | Customer (Owner only) | 200 | *(none)* | `{ id, status: "cancelled" }` | `FORBIDDEN` (403 for workers), `NOT_FOUND` (404 for non-owner), `JOB_EXPIRED` (409), `JOB_IN_PROGRESS` (409) |
 
 ---
 
 ## 8. Fair Rate Compass (`/compass`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `GET` | `/compass` | Get rate guidance for skill and area | Logged in | Query: `skill`, `localityKey`. 3-tier fallback: localityKey -> cityKey -> sample baseline. |
+| Method | Endpoint | Description | Access | Status | Query Parameters | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `GET` | `/compass` | Rate guidance with 3-tier fallback | Logged in | 200 | `skill` (required), `localityKey` (optional, default caller's), `rate` (optional ₹/hr) | `{ skill, localityKey, p25, median, p75, sampleSize, source: "locality" \| "city" \| "baseline", isSample, note?, label? }` | `VALIDATION_ERROR` (400), `SET_AREA` (400), `TOO_MANY_REQUESTS` (60 req / 10 min) |
 
 ---
 

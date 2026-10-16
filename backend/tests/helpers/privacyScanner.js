@@ -8,20 +8,39 @@
  * @param {string[]} [forbiddenKeys]
  * @throws {Error} if any forbidden key is detected
  */
-export function assertNoSensitiveFields(target, forbiddenKeys = [
-  'passwordHash',
-  'password',
-  'tokenVersion',
-  'lockUntil',
-  'lockLevel',
-  'failedLoginCount',
-  'tokenHash',
-  'replacedByHash',
-  'location',
-  'coordinates',
-  'lat',
-  'lng'
-]) {
+export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
+  let forbiddenKeys;
+  let allowPhoneAndEmail = false;
+
+  if (Array.isArray(optionsOrForbidden)) {
+    forbiddenKeys = optionsOrForbidden;
+  } else {
+    allowPhoneAndEmail = Boolean(optionsOrForbidden.allowPhoneAndEmail);
+    forbiddenKeys = [
+      'passwordHash',
+      'password',
+      'tokenVersion',
+      'lockUntil',
+      'lockLevel',
+      'failedLoginCount',
+      'tokenHash',
+      'replacedByHash',
+      'location',
+      'coordinates',
+      'lat',
+      'lng',
+      'latitude',
+      'longitude',
+      'searchLocation',
+      'startCodeEnc',
+      'finishCodeEnc',
+      'passportHead',
+      'penaltyCounters'
+    ];
+    if (!allowPhoneAndEmail) {
+      forbiddenKeys.push('phone', 'email');
+    }
+  }
   const violations = [];
 
   function scan(val, path = '') {

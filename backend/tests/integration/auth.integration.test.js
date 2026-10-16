@@ -94,8 +94,8 @@ describe('backend/tests/integration/auth.integration.test.js (MongoDB In-Memory 
     assert.equal(body.data.user.email, 'ravi.kumar@example.com');
     assert.equal(body.data.user.role, 'worker');
 
-    // Run privacy scanner
-    assertNoSensitiveFields(body);
+    // Run privacy scanner (own account is exempt for phone and email)
+    assertNoSensitiveFields(body, { allowPhoneAndEmail: true });
 
     // Verify stored password in DB is scrypt format and refreshToken is hashed
     const storedUser = await User.findOne({ email: 'ravi.kumar@example.com' }).select('+passwordHash');
@@ -602,7 +602,14 @@ describe('backend/tests/integration/auth.integration.test.js (MongoDB In-Memory 
       { method: 'GET', path: '/api/v1/meta', expected: { visitor: 401, customer: 200, worker: 200 } },
       { method: 'GET', path: '/api/v1/users/me', expected: { visitor: 401, customer: 200, worker: 200 } },
       { method: 'PATCH', path: '/api/v1/users/me', body: { name: 'Matrix Renamed' }, expected: { visitor: 401, customer: 200, worker: 200 } },
-      { method: 'POST', path: '/api/v1/uploads/sign', body: { purpose: 'avatar' }, expected: { visitor: 401, customer: 503, worker: 503 } }
+      { method: 'POST', path: '/api/v1/uploads/sign', body: { purpose: 'avatar' }, expected: { visitor: 401, customer: 503, worker: 503 } },
+      { method: 'GET', path: '/api/v1/workers?skill=electrician', expected: { visitor: 401, customer: 400, worker: 400 } }, // 400 SET_AREA since users have no area yet
+      { method: 'GET', path: '/api/v1/compass?skill=electrician&localityKey=edapally', expected: { visitor: 401, customer: 200, worker: 200 } },
+      { method: 'GET', path: '/api/v1/jobs', expected: { visitor: 401, customer: 403, worker: 403 } }, // worker gets 403 PROFILE_INCOMPLETE
+      { method: 'GET', path: '/api/v1/jobs/mine', expected: { visitor: 401, customer: 200, worker: 403 } },
+      { method: 'POST', path: '/api/v1/jobs', body: { skill: 'electrician' }, expected: { visitor: 401, customer: 403, worker: 403 } }, // customer gets 403 PROFILE_INCOMPLETE
+      { method: 'POST', path: '/api/v1/jobs/000000000000000000000000/accept', expected: { visitor: 401, customer: 403, worker: 403 } }, // worker gets 403 PROFILE_INCOMPLETE
+      { method: 'POST', path: '/api/v1/jobs/000000000000000000000000/cancel', expected: { visitor: 401, customer: 404, worker: 403 } }
     ];
 
     for (const route of routes) {

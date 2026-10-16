@@ -96,6 +96,21 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    rateHourlyEffective: {
+      type: Number,
+      default: 0
+    },
+    searchLocation: {
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point'
+      },
+      coordinates: {
+        type: [Number], // [lng, lat] of locality centroid
+        default: [0, 0]
+      }
+    },
     bio: {
       type: String,
       default: '',
@@ -150,7 +165,9 @@ const userSchema = new mongoose.Schema(
 );
 
 userSchema.index({ location: '2dsphere' });
-userSchema.index({ role: 1, isActive: 1, skills: 1 });
+userSchema.index({ searchLocation: '2dsphere' });
+userSchema.index({ role: 1, isActive: 1, profileComplete: 1, skills: 1 });
 userSchema.index({ role: 1, 'passportStats.avgRating': -1 });
+userSchema.index({ role: 1, rateHourlyEffective: 1 });
 
 export const User = mongoose.model('User', userSchema);

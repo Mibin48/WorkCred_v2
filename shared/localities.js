@@ -24,5 +24,10 @@ export const CITIES = [
  * @param {string} key 
  */
 export function getLocalityByKey(key) {
-  return LOCALITIES.find(l => l.key === key) || null;
+  if (!key || typeof key !== 'string') return null;
+  const normalized = key.trim().toLowerCase();
+  if (normalized === 'edapally') {
+    return LOCALITIES.find(l => l.key === 'edappally') || null;
+  }
+  return LOCALITIES.find(l => l.key === normalized) || null;
 }

@@ -67,3 +67,37 @@ This document records key architectural, security, and product design decisions 
 - **Decision:** Direct uploads to Cloudinary are authenticated via server-signed requests without including any third-party Cloudinary SDK. Signatures are computed using SHA-1 over sorted parameters with the API secret. Upload paths are rigidly locked server-side to `workcred/<NODE_ENV>/<userId>/avatar`. The server rejects avatar photo URLs that do not strictly target the authenticated user's assigned folder. If Cloudinary environment variables are absent, `/uploads/sign` responds with HTTP 503 `UPLOADS_DISABLED` without breaking profile functionality.
 - **Rationale:** Zero server bandwidth or RAM consumed streaming binary photos, zero leakage of API secrets, and bulletproof user folder tenancy isolation.
 
+### 15. Rate Unit Standardized on Rupees Per Hour (Phase B4 - G1)
+- **Date:** 2026-10-16
+- **Decision:** ALL price comparisons, rate filter evaluations, Fair Rate Compass benchmarks, and job calculations are conducted in **RUPEES PER HOUR**. A worker's effective hourly rate is evaluated as `hourlyRate` if set, otherwise `round(dailyRate / 8)`. Job `offeredRate` is rupees per hour per worker (total pay = `offeredRate * hours`). Completed bookings store `agreedRate` per hour. Sample baselines are converted from daily to hourly (`daily / 8`, rounded) and explicitly labelled SAMPLE.
+- **Rationale:** Eliminates ambiguity and mismatch between daily-wage and hourly-wage workers, ensuring fair filtering, uniform compass guidance, and accurate job compensation calculations across the entire system.
+
+### 16. Search Privacy: Locality Centroid Only (Phase B4 - G2)
+- **Date:** 2026-10-16
+- **Decision:** Workers are searched and indexed via `searchLocation` set strictly to the **centroid of their locality** (from `shared/localities.js`), NEVER their private exact coordinates. Distance calculations in search use the centroid, and returned distances are approximate (nearest 0.5 km, minimum "under 1 km"). Exact coordinates and GeoJSON geometries are never exposed in search or profile responses.
+- **Rationale:** Prevents worker location triangulation, stalking, and home address reverse-engineering while maintaining realistic neighborhood-level matching.
+
+### 17. Maintained Derived Worker Fields on Save (Phase B4 - G3)
+- **Date:** 2026-10-16
+- **Decision:** The profile service automatically maintains derived fields on save: `mainSkill` (first skill or designated main), `rateHourlyEffective` (`hourlyRate || round(dailyRate / 8)`), and `searchLocation` (locality centroid Point). Existing records are updated via `scripts/backfill-search-fields.js`.
+- **Rationale:** Eliminates runtime re-computations in geo-queries and sorting pipelines, allowing high-performance compound indexing on `{ role: 1, rateHourlyEffective: 1 }` and `2dsphere` on `searchLocation`.
+
+### 18. Job Start Time Boundaries (Phase B4 - G4)
+- **Date:** 2026-10-16
+- **Decision:** Job `startAt` must be at least 15 minutes ahead of the current time (`>= now + 15m`) and at most 30 days in the future (`<= now + 30d`), evaluated using the injectable clock. Stored in UTC; displays localized to India Standard Time (+05:30).
+- **Rationale:** Prevents immediate impossible bookings, gives workers reasonable arrival windows, and avoids unbounded forward-dated ghost listings.
+
+### 19. Read-Time Job Expiry (Phase B4 - G5)
+- **Date:** 2026-10-16
+- **Decision:** Job expiration is evaluated strictly at read-time: an open job where `startAt <= now` is treated as expired. It is filtered out from `GET /jobs` (search) and surfaced as `status: 'expired'` in `GET /jobs/mine`. No background cron or polling sweeper is required in Phase B4.
+- **Rationale:** Minimizes operational complexity, avoids race conditions with background schedulers, and ensures zero stale jobs are ever presented to workers.
+
+### 20. Immediate Confirmed Booking Creation on Job Accept with Encrypted Codes (Phase B4 - G6)
+- **Date:** 2026-10-16
+- **Decision:** Accepting a job creates the booking immediately with `status: 'confirmed'` and `source: 'job'`. Start and finish codes are 4-digit numbers generated via `crypto.randomInt`, encrypted using AES-256-GCM (`codesCrypto`) with Additional Authenticated Data (AAD) bound to `bookingId + ":" + ("start" | "finish")`. The booking `_id` is generated before insertion so the AAD can bind to it. Codes and exact locations are never returned in B4 responses.
+- **Rationale:** Binds codes cryptographically to individual bookings, preventing code swapping attacks, while ensuring slot confirmation is immediate.
+
+### 21. Atomic Slot Claim and Conflict Rollback (Phase B4 - G7)
+- **Date:** 2026-10-16
+- **Decision:** Claiming a job slot executes via a single atomic conditional update that increments `acceptedCount` only when `status === 'open'`, `startAt > now`, and `acceptedCount < workersNeeded`, flipping `status` to `'filled'` when `acceptedCount + 1 === workersNeeded`. If booking creation fails or worker calendar/booking clash checks fail post-claim, the increment is cleanly decremented and the job is reopened.
+- **Rationale:** Guarantees zero overselling of job slots under high concurrency without requiring multi-document replica-set transactions.

@@ -13,6 +13,10 @@ import { createAuthRouter } from './routes/auth.js';
 import { createUsersRouter } from './routes/users.js';
 import { createMetaRouter } from './routes/meta.js';
 import { createUploadsRouter } from './routes/uploads.js';
+import { createWorkersRouter } from './routes/workers.js';
+import { createCompassRouter } from './routes/compass.js';
+import { createJobsRouter } from './routes/jobs.js';
+import { idempotency } from './middleware/idempotency.js';
 
 export function createApp(config = {}) {
   const app = express();
@@ -98,15 +102,23 @@ export function createApp(config = {}) {
 
   // Mount Routers
   const authMiddleware = createAuthMiddleware(config);
+  const idempotencyMiddleware = { idempotency };
+
   const authRouter = createAuthRouter(config, authMiddleware);
   const usersRouter = createUsersRouter(config, authMiddleware);
   const metaRouter = createMetaRouter(config, authMiddleware);
   const uploadsRouter = createUploadsRouter(config, authMiddleware);
+  const workersRouter = createWorkersRouter(config, authMiddleware);
+  const compassRouter = createCompassRouter(config, authMiddleware);
+  const jobsRouter = createJobsRouter(config, authMiddleware, idempotencyMiddleware);
 
   apiRouter.use('/auth', authRouter);
   apiRouter.use('/users', usersRouter);
   apiRouter.use('/meta', metaRouter);
   apiRouter.use('/uploads', uploadsRouter);
+  apiRouter.use('/workers', workersRouter);
+  apiRouter.use('/compass', compassRouter);
+  apiRouter.use('/jobs', jobsRouter);
 
   app.use('/api/v1', apiRouter);
 
