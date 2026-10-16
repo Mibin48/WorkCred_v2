@@ -5,7 +5,7 @@
 | Major Phase | Sub-Phase | Description | Status | Last Tag | Known Bugs | Next Steps |
 |---|---|---|---|---|---|---|
 | **Phase 1: System Design** | **1** | System Design & Docs Context Pack v3.2 | **DONE** | `PHASE1-final` | None | Start Phase 2 (Backend Foundation B1) |
-| **Phase 2: Backend** | **B1** | Express Foundation, Config & Database Connection | Not Started | — | — | Server bootstrap & connection handlers |
+| **Phase 2: Backend** | **B1** | Express Foundation, Config & Database Connection | Code written (Tests NOT yet run by user) | `PHASE1-final` | None | Run test suite & verify Atlas ready |
 | | **B2** | Models, Schemas & Indexes | Not Started | — | — | Mongoose schemas & indexes |
 | | **B3** | Auth, Sessions & Access/Refresh JWT (`wc_rt`) | Not Started | — | — | Sign-up, login, refresh rotation |
 | | **B4** | Search, Jobs & Bookings State Machine | Not Started | — | — | Job postings & direct bookings |

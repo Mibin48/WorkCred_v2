@@ -34,3 +34,11 @@ This document records key architectural, security, and product design decisions 
   - Tab labels display actionable pending counts derived directly from bookings data (e.g. `My work (2)` for workers needing to respond; `Bookings (1)` for customers needing to provide code or payment confirmation).
   - Worker Home preserves "Needs your answer" prominently at top.
   - Header: Customers show initials account button only; workers show no action icons.
+
+### 7. Global API Response and Cache Control Specifications (Phase B1)
+- **Decision:** Every API endpoint strictly outputs `{ success: true, data: {}, message: "" }` or `{ success: false, error: { code: "", message: "", details?: [] } }`. All `/api/v1/*` responses include `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate`. Errors never leak stack traces.
+- **Rationale:** Uniform client error handling, zero information leakage in error flows, and absolute prevention of stale authenticated responses in intermediary or browser caches.
+
+### 8. Work Passport Record Immutability Enforcement
+- **Decision:** Immutability of Passport record content (`workerId`, `bookingId`, `seq`, `skill`, `date`, `hours`, `rating`, `comment`, `employerName`, `prevHash`, `hash`) is enforced via Mongoose pre-update middleware hooks rejecting any modifications targeting fields other than `visible` and `maskEmployerName`.
+- **Rationale:** Guarantees append-only audit trail integrity at the database model layer so application bugs cannot tamper with historical records.

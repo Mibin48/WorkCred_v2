@@ -17,10 +17,13 @@
   "success": false,
   "error": {
     "code": "ERROR_CODE",
-    "message": "Human readable error message"
+    "message": "Human readable error message",
+    "details": [] // Optional details array/object (e.g. validation errors)
   }
 }
 ```
+
+> **API Headers Rule:** All API responses under `/api/v1/*` are served with `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate`. Errors never leak stack traces. Invalid JSON payloads return `400 BAD_JSON`. Unmatched routes return `404 NOT_FOUND`.
 
 ---
 
@@ -146,5 +149,5 @@
 
 | Method | Endpoint | Description | Access | Notes |
 |---|---|---|---|---|
-| `GET` | `/health` | Basic liveness check | Public | Returns status ok. |
-| `GET` | `/health/ready` | Readiness check including database connectivity | Public | Returns MongoDB connection state. |
+| `GET` | `/health` | Basic service liveness check | Public | Always returns HTTP 200 with `{ "status": "ok" }`. |
+| `GET` | `/health/ready` | Readiness check including database connectivity | Public | Returns HTTP 200 `{ "database": "connected" }` when MongoDB answers ping; HTTP 503 `SERVICE_UNAVAILABLE` otherwise. |

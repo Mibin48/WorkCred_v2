@@ -1,0 +1,32 @@
+{
+  "name": "workcred-backend",
+  "version": "1.0.0",
+  "description": "WorkCred Backend API Server",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node --env-file=.env src/server.js",
+    "dev": "node --env-file=.env --watch src/server.js",
+    "test": "node --test tests/unit/**/*.test.js tests/smoke/**/*.test.js",
+    "test:integration": "node --test tests/integration/**/*.test.js",
+    "setup": "node scripts/setup.js"
+  },
+  "dependencies": {
+    "cookie-parser": "1.4.7",
+    "cors": "2.8.6",
+    "express": "4.22.3",
+    "express-mongo-sanitize": "2.2.0",
+    "express-rate-limit": "8.7.1",
+    "helmet": "8.3.0",
+    "jose": "6.2.12",
+    "mongoose": "8.24.5",
+    "pino": "10.4.0"
+  },
+  "devDependencies": {
+    "mongodb-memory-server": "11.3.0",
+    "pino-pretty": "13.2.0"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  }
+}
