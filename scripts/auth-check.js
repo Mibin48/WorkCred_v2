@@ -138,9 +138,9 @@ async function run() {
     headers: { 'Authorization': `Bearer ${accessToken}` }
   });
   const meBody = await meRes.json();
-  const meData = meBody.data || {};
-  const noSensitiveLeaked = !('passwordHash' in meData) && !('tokenVersion' in meData) && !('lockUntil' in meData);
-  report('8. GET /users/me (Own Profile, No Secrets)', meRes.status === 200 && meData.email === workerEmail && noSensitiveLeaked, `status: ${meRes.status}`);
+  const meUser = meBody.data?.user || meBody.data || {};
+  const noSensitiveLeaked = !('passwordHash' in meUser) && !('tokenVersion' in meUser) && !('lockUntil' in meUser);
+  report('8. GET /users/me (Own Profile, No Secrets)', meRes.status === 200 && meUser.email === workerEmail && noSensitiveLeaked, `status: ${meRes.status}`);
 
   // Step 9: Refresh token rotation
   const refreshRes = await fetch(`${baseUrl}/api/v1/auth/refresh`, {

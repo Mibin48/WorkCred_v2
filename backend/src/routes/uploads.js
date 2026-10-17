@@ -34,13 +34,16 @@ export function createUploadsRouter(config, authMiddleware) {
 
       // 2. Validate body
       const body = req.body;
-      if (!body || typeof body !== 'object' || body.purpose !== 'avatar') {
-        return next(new AppError('VALIDATION_ERROR', "purpose must be 'avatar'", 400));
+      const purpose = body?.purpose;
+      if (purpose !== 'avatar' && purpose !== 'post') {
+        return next(new AppError('VALIDATION_ERROR', "purpose must be 'avatar' or 'post'", 400));
       }
 
       const userId = req.user._id.toString();
       const nodeEnv = NODE_ENV || 'development';
-      const folder = `workcred/${nodeEnv}/${userId}/avatar`;
+      const folder = purpose === 'post'
+        ? `workcred/${nodeEnv}/${userId}/posts`
+        : `workcred/${nodeEnv}/${userId}/avatar`;
       const timestamp = Math.floor(Date.now() / 1000);
       const publicId = crypto.randomUUID();
 

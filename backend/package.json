@@ -8,8 +8,9 @@
     "start": "node --env-file=.env src/server.js",
     "dev": "node --env-file=.env --watch src/server.js",
     "test": "node --test tests/unit/**/*.test.js tests/smoke/**/*.test.js",
-    "test:integration": "node --test tests/integration/**/*.test.js",
+    "test:integration": "node --test-concurrency=1 --test tests/integration/**/*.test.js",
     "setup": "node scripts/setup.js",
+    "check:all": "node ../scripts/check-all.js",
     "support:reset-password": "node --env-file=.env scripts/reset-password.js",
     "support:unlock": "node --env-file=.env scripts/unlock-account.js"
   },

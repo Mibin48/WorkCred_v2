@@ -251,4 +251,58 @@ Both start and finish handshakes use separate attempt counters (`startCodeAttemp
 1. **Centroid Storage:** The `availability` document stores `location` as the centroid of the worker's selected locality (`searchLocation`), never the worker's private exact residence coordinates.
 2. **Approximate Distances:** Customer distances to Free Now workers in `GET /availability/nearby` are computed using Haversine math and formatted into rounded human-readable approximations (e.g., `"2.5 km away"`), preventing trilateration attacks.
 
+---
+
+## 10. Feed, Social, Endorsements, and Reports Security Architecture (Phase B7)
+
+### 10.1 Post Media Path Enforcement (K4)
+1. **Server-Signed Upload Flow:** Direct image uploads to Cloudinary require signed credentials obtained via `POST /uploads/sign` with `purpose: "post"`.
+2. **Deterministic Folder Tenancy:** The server exclusively issues upload signatures for the path:
+   ```text
+   workcred/<NODE_ENV>/<userId>/posts
+   ```
+   Clients cannot override or customize the folder parameter.
+3. **Strict URL Validation:** When creating a post, both `afterUrl` and `beforeUrl` are validated against strict regex:
+   - Must use `https://`.
+   - Host must be `res.cloudinary.com/<CLOUDINARY_CLOUD_NAME>`.
+   - Path must start with `/image/upload/` followed by optional transformation tags, followed strictly by `workcred/<NODE_ENV>/<userId>/posts/<filename>`.
+   - Query strings and URL fragments are forbidden.
+   - Any attempt to use another user's folder or the `avatar` folder returns `400 VALIDATION_ERROR`.
+
+### 10.2 Verified Job Integrity & Information Isolation (K5)
+1. **Pre-requisites:** An optional `bookingId` marks a post as a verified job only if:
+   - The booking exists and its status is `completed`.
+   - The booking's `workerId` strictly equals the posting worker (`403 NOT_YOUR_JOB`).
+   - The booking's `skill` exactly matches the post's `skill` (`409 SKILL_MISMATCH`).
+2. **One-to-One Job Verification:** A completed booking can back at most one post, enforced by unique partial index `{ bookingId: 1 }` with `{ partialFilterExpression: { bookingId: { $type: "objectId" } } }` and application check `409 BOOKING_ALREADY_POSTED`.
+3. **Data Isolation:** The `bookingId`, customer identity, and booking financial details are **never returned** in post or feed responses. API responses only expose `verifiedJob: true | false`.
+
+### 10.3 Post & Social Abuse Prevention: Atomic Quota Guard (K6)
+1. **Daily Post Quota:** Maximum 10 posts per India calendar day (IST, reset at 00:00:00 IST).
+2. **Active Post Cap:** Maximum 100 active posts per worker.
+3. **Atomic Conditional Updates:** All quota checks and increments occur in single atomic MongoDB operations on the `users` document:
+   ```javascript
+   User.findOneAndUpdate(
+     { _id: user._id, activePostCount: { $lt: 100 }, 'postQuota.dayKey': todayKey, 'postQuota.count': { $lt: 10 } },
+     { $inc: { activePostCount: 1, 'postQuota.count': 1 } }
+   );
+   ```
+   If the limit is exceeded, an atomic read determines whether to return `429 POST_LIMIT_DAILY` or `409 POST_LIMIT_ACTIVE`.
+4. **Follow and Save Caps:** Users are capped at 500 follows and 500 saves. Follow creations conditionally check `{ 'followCounts.follow': { $lt: 500 } }` returning `409 FOLLOW_LIMIT` or `409 SAVE_LIMIT`.
+
+### 10.4 Tamper-Proof Endorsements & Multi-Document Transactions (K7)
+1. **Eligibility Gate:** Customers only (`403 FORBIDDEN_ROLE`). Customer must possess at least one completed booking with the worker for that specific skill (`403 NOT_ELIGIBLE`).
+2. **Single Endorsement Guarantee:** Compound unique index `{ customerId: 1, workerId: 1, skill: 1 }`. Duplicate submissions return `409 ALREADY_ENDORSED`.
+3. **Atomic Counter Sync:** Endorsement insertion and the worker's `endorsementCounts.<skill>` increment execute inside a MongoDB multi-document transaction with automated retry. If the update fails, the endorsement rolls back completely.
+
+### 10.5 Abuse Reporting & IP Privacy (K8)
+1. **HMAC Client IP Hashing:** The client IP is **never** stored in plaintext. It is stored as `ipHash`, derived via HMAC-SHA256:
+   ```javascript
+   const ipHmacKey = crypto.createHmac('sha256', JWT_REFRESH_SECRET).update('workcred:report:ip_key').digest();
+   const ipHash = crypto.createHmac('sha256', ipHmacKey).update(clientIp).digest('hex');
+   ```
+2. **Duplicate Suppression:** Submitting identical reports (`reporterId`, `targetType`, `targetId`, `reason`) within a 24-hour window returns the same success response (`"Report received. Support will review it."`) without creating a duplicate record or altering review status.
+3. **Privacy Enforcement:** Responses never echo target details, notes, or identify who reported whom. Automated privacy scanners assert that `ipHash`, `reporterId`, and `reportedUserId` are forbidden from all client responses.
+
+
 

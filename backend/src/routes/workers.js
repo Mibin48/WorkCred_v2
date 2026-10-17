@@ -2,6 +2,9 @@ import express from 'express';
 import mongoose from 'mongoose';
 import { User } from '../models/User.js';
 import { RateStats } from '../models/RateStats.js';
+import { Follow } from '../models/Follow.js';
+import { Booking } from '../models/Booking.js';
+import { Endorsement } from '../models/Endorsement.js';
 import { formatSuccess, AppError } from '../utils/errors.js';
 import { createRateLimiter } from '../middleware/rateLimiter.js';
 import { VALID_SKILLS } from '../../../shared/profileRules.js';
@@ -9,6 +12,7 @@ import { getLocalityByKey } from '../../../shared/localities.js';
 import { SAMPLE_BASELINES, fairLabel, pickSource } from '../../../shared/compassMath.js';
 import { formatApproxDistance, encodeCursor, decodeCursor } from '../../../shared/jobRules.js';
 import { getPublicPassport, verifyPassport } from '../services/passportService.js';
+import { getCanEndorseSkills } from '../../../shared/endorsementEligibility.js';
 
 export function createWorkersRouter(config, authMiddleware) {
   const router = express.Router();
@@ -296,8 +300,23 @@ export function createWorkersRouter(config, authMiddleware) {
         }
       }
 
+      // Phase B7: Batch query viewer relations (isFollowing, isSaved) in ONE query
+      const workerIds = results.map((w) => w._id);
+      const viewerRelations = await Follow.find({
+        fromId: user._id,
+        toId: { $in: workerIds }
+      }).lean();
+
+      const followSet = new Set(
+        viewerRelations.filter((r) => r.type === 'follow').map((r) => r.toId.toString())
+      );
+      const saveSet = new Set(
+        viewerRelations.filter((r) => r.type === 'save').map((r) => r.toId.toString())
+      );
+
       // Build sanitized result items
       const formattedWorkers = results.map((w) => {
+        const wid = w._id.toString();
         const skillChoice = filterSkill || w.mainSkill || (w.skills && w.skills[0]) || 'other';
         const locKey = w.localityKey || LOCALITIES[0].key;
         const locDoc = getLocalityByKey(locKey);
@@ -308,7 +327,7 @@ export function createWorkersRouter(config, authMiddleware) {
         const approxDist = formatApproxDistance(w.calculatedDistance);
 
         return {
-          id: w._id.toString(),
+          id: wid,
           name: w.name,
           photoUrl: w.photoUrl || null,
           mainSkill: w.mainSkill || null,
@@ -323,6 +342,8 @@ export function createWorkersRouter(config, authMiddleware) {
           approxDistance: approxDist,
           localityName: locDoc ? locDoc.name : null,
           hasVerifiedHistory: (w.passportStats?.jobs || 0) > 0,
+          isFollowing: followSet.has(wid),
+          isSaved: saveSet.has(wid),
           fairRate: {
             label,
             isSample: sourceRes ? sourceRes.isSample : true
@@ -445,8 +466,43 @@ export function createWorkersRouter(config, authMiddleware) {
           weekly: weeklySummary,
           blockedNext14DaysCount: blockedDatesCount
         },
-        endorsements: {} // Filled in Phase B7
+        endorsements: worker.endorsementCounts instanceof Map
+          ? Object.fromEntries(worker.endorsementCounts)
+          : (worker.endorsementCounts || {})
       };
+
+      // Phase B7: Viewer follow/save relation
+      const viewerFollows = await Follow.find({
+        fromId: req.user._id,
+        toId: worker._id
+      }).lean();
+
+      responseData.viewer = {
+        isFollowing: viewerFollows.some((f) => f.type === 'follow'),
+        isSaved: viewerFollows.some((f) => f.type === 'save')
+      };
+
+      // Phase B7: For CUSTOMERS, canEndorse [skills eligible for and not yet endorsed]
+      if (req.user.role === 'customer') {
+        const [completedBookings, existingEndorsements] = await Promise.all([
+          Booking.find({
+            customerId: req.user._id,
+            workerId: worker._id,
+            status: 'completed'
+          }).select('customerId workerId skill status').lean(),
+          Endorsement.find({
+            customerId: req.user._id,
+            workerId: worker._id
+          }).select('customerId workerId skill').lean()
+        ]);
+
+        responseData.canEndorse = getCanEndorseSkills(
+          req.user._id,
+          worker._id,
+          completedBookings,
+          existingEndorsements
+        );
+      }
 
       // B5: Add history check (historyCheck: { status, records, privateIncludedCount })
       // runChainVerification is imported from passportService

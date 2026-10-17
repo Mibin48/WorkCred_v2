@@ -10,8 +10,8 @@
 | | **B3** | Profiles, Calendar & Signed Uploads (PROF-1 to PROF-6) | **DONE** (Accepted & Working) | — | None | Proceeded to B4 |
 | | **B4** | Search, Fair Rate Compass, Jobs (FIND-1 to FIND-4, COMP-1 to COMP-3, JOB-1 to JOB-7) | **DONE** (Accepted & Working) | — | None | Proceeded to B5 |
 | | **B5** | Bookings, Handshake & Work Passport (BOOK-1 to BOOK-5, HAND-1 to HAND-9, PASS-1 to PASS-7) | **DONE** (Accepted & Working) | — | None | Proceeded to B6 |
-| | **B6** | Free Now and Realtime (FREE-1 to FREE-5, Realtime 7.12, Section 15 Events) | Code written (Tests NOT yet run by user) | — | None | Run unit, integration, and b6-check.js scripts |
-| | **B7** | Fair Rate Compass (3-Tier Fallback) & Free Now | Not Started | — | — | Geo queries & rate percentiles |
+| | **B6** | Free Now and Realtime (FREE-1 to FREE-5, Realtime 7.12, Section 15 Events) | **DONE** (Accepted & Working) | — | None | Proceeded to B7 |
+| | **B7** | Feed and Social, Endorsements, Reports (FEED-1 to FEED-6, WPRO-1, WPRO-3) | Code written (Tests NOT yet run by user; backend feature-complete once accepted) | — | None | Run unit, integration, b7-check.js, and check:all scripts |
 | **Phase 3: Seed Data** | **SEED** | Kochi Localities, Baseline Compass & Demo Accounts | Not Started | — | — | Local mock data and demo users |
 | **Phase 4: Frontend Integration** | **S1** | Shared Pure Modules (Validation, Integrity, Contact Blocking) | Not Started | — | — | Isomorphic browser/node shared code |
 | | **I1** | Frontend Foundation & Design Tokens | Not Started | — | — | CSS tokens & basic layout |

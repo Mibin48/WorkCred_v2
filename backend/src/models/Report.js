@@ -25,6 +25,11 @@ const reportSchema = new mongoose.Schema(
       ref: 'User',
       default: null
     },
+    reportedUserId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null
+    },
     ipHash: {
       type: String,
       required: true
@@ -36,6 +41,7 @@ const reportSchema = new mongoose.Schema(
 );
 
 reportSchema.index({ targetType: 1, targetId: 1 });
+reportSchema.index({ reporterId: 1, targetType: 1, targetId: 1, reason: 1, createdAt: -1 });
 reportSchema.index({ createdAt: -1 });
 
 export const Report = mongoose.model('Report', reportSchema);

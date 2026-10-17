@@ -41,56 +41,21 @@ export const SHARED_ALLOWED_FIELDS = new Set([
   'photoUrl'
 ]);
 
+import { validatePhotoUrlByFolder } from './postRules.js';
+
+export { validatePhotoUrlByFolder };
+
 /**
  * Validates photoUrl strictly bound to Cloudinary cloudName, NODE_ENV, and caller's userId folder.
+ * Delegates to validatePhotoUrlByFolder with folderType = 'avatar'.
  * 
  * @param {string} photoUrl 
- * @param {object} context { cloudName, nodeEnv, userId }
+ * @param {object} context { cloudName, nodeEnv, userId, folderType? }
  * @returns {{ valid: boolean, error?: string, sanitizedUrl?: string }}
  */
 export function validatePhotoUrl(photoUrl, context = {}) {
-  if (photoUrl === '' || photoUrl === null) {
-    return { valid: true, sanitizedUrl: null };
-  }
-
-  if (typeof photoUrl !== 'string') {
-    return { valid: false, error: 'photoUrl must be a string' };
-  }
-
-  // Reject query strings or fragments
-  if (photoUrl.includes('?') || photoUrl.includes('#')) {
-    return { valid: false, error: 'photoUrl must not contain query parameters or fragments' };
-  }
-
-  const { cloudName, nodeEnv, userId } = context;
-  if (!cloudName || !nodeEnv || !userId) {
-    return { valid: false, error: 'Server upload configuration missing' };
-  }
-
-  try {
-    const url = new URL(photoUrl);
-    if (url.protocol !== 'https:') {
-      return { valid: false, error: 'photoUrl must use HTTPS' };
-    }
-    if (url.hostname !== 'res.cloudinary.com') {
-      return { valid: false, error: 'photoUrl must be hosted on res.cloudinary.com' };
-    }
-
-    // Required pattern: /<cloudName>/image/upload/.../workcred/<nodeEnv>/<userId>/avatar/<filename>
-    const expectedPrefix = `/${cloudName}/image/upload/`;
-    if (!url.pathname.startsWith(expectedPrefix)) {
-      return { valid: false, error: `photoUrl must point to cloud ${cloudName}` };
-    }
-
-    const expectedFolder = `workcred/${nodeEnv}/${userId}/avatar/`;
-    if (!url.pathname.includes(expectedFolder)) {
-      return { valid: false, error: "photoUrl must reside inside your own user's avatar folder" };
-    }
-
-    return { valid: true, sanitizedUrl: photoUrl.trim() };
-  } catch {
-    return { valid: false, error: 'photoUrl is not a valid URL' };
-  }
+  const folderType = context.folderType || 'avatar';
+  return validatePhotoUrlByFolder(photoUrl, { ...context, folderType });
 }
 
 /**

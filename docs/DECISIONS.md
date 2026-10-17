@@ -201,4 +201,50 @@ This document records key architectural, security, and product design decisions 
 - **Decision:** When creating a booking from Free Now (`fromFreeNow: true`), the booking's `scheduledAt` is set automatically to `clock.now() + 30 minutes` and must start before `window.expiresAt` (else HTTP 409 `FREE_WINDOW_ENDS_SOON`). The total requested booking hours (`hours`) are not constrained by the Free Now window duration. The worker must still explicitly confirm the booking.
 - **Rationale:** Allows customers to book workers for substantive multi-hour jobs starting immediately while giving the worker final confirmation control.
 
+### 41. Feed Shape and Highlights (Phase B7 - K1)
+- **Date:** 2026-10-17
+- **Decision:** Unified endpoint `GET /feed` with two tabs: `nearby` (default) and `following`. Both tabs are ordered newest first with cursor pagination (`nextCursor`). The first page of the `nearby` tab includes non-paginated `highlights` (max 5 items): for workers, nearest open jobs matching their skills (reusing the B4 jobs service); for customers, nearest live Free Now workers (reusing the B6 nearby service). Highlights return empty arrays when none are available, and are omitted on subsequent pages and on the `following` tab.
+- **Rationale:** Delivers an engaging, consolidated home stream without chat/comments/likes complexity while driving discovery of immediate nearby economic opportunities.
+
+### 42. Post Location Privacy and Nearby Geo Radius (Phase B7 - K2)
+- **Date:** 2026-10-17
+- **Decision:** A post stores the author's `searchLocation` (locality centroid, never the exact point) and `localityKey` at creation time. Nearby feed filters posts whose stored location is within 10 km of the viewer's origin (using the same origin rule as B4 search: private GPS point if set, else locality centroid). Distances are approximate and rounded using the shared helper. Exact coordinates are never returned.
+- **Rationale:** Protects worker residential locations from triangulation while preserving community-level proof of work.
+
+### 43. Author Inactivity Hiding and Hard Deletes (Phase B7 - K3)
+- **Date:** 2026-10-17
+- **Decision:** Posts of inactive workers or workers who are no longer `profileComplete` are automatically filtered out from all feed and social queries. Posts are hard deleted by their author. Any existing reports retain the `postId` and author `reportedUserId` so moderation and support can still take action.
+- **Rationale:** Ensures stale or incomplete worker content does not degrade the feed experience, and respects worker rights to fully remove content.
+
+### 44. Cloudinary Post Photo Path Isolation (Phase B7 - K4)
+- **Date:** 2026-10-17
+- **Decision:** Post photos upload directly to Cloudinary using the B3 signing flow with `purpose: "post"` and server-enforced folder `workcred/<NODE_ENV>/<userId>/posts`. Both `afterUrl` and `beforeUrl` must be HTTPS URLs targeting `res.cloudinary.com` inside that specific user's `posts` folder (no query strings, no cross-user folders, no alternate cloud names).
+- **Rationale:** Enforces strict multi-tenant asset containment and prevents cross-user image spoofing or linking external unvetted resources.
+
+### 45. Verified Job Association and Sparse Indexing (Phase B7 - K5)
+- **Date:** 2026-10-17
+- **Decision:** An optional `bookingId` marks a post as a verified job only if the booking status is `completed`, belongs to the posting worker, and matches the post's skill (403 `NOT_YOUR_JOB`, 409 `SKILL_MISMATCH`). A single booking can back at most one post, enforced by a unique sparse/partial index and 409 `BOOKING_ALREADY_POSTED`. The `bookingId` is never returned in any response; clients only receive `verifiedJob: true|false`.
+- **Rationale:** Provides tamper-proof authenticity for genuine platform-completed jobs without leaking booking identifiers or customer transaction details.
+
+### 46. Race-Safe Quota and Cap Enforcement (Phase B7 - K6)
+- **Date:** 2026-10-17
+- **Decision:** Quotas are enforced atomically using conditional MongoDB updates on counters stored directly on the User document (`activePostCount`, `postQuota: { dayKey, count }`, `followCounts: { follow, save }`), never read-then-insert alone. Daily post quota: 10 per India calendar day (IST, midnight rollover, 429 `POST_LIMIT_DAILY`). Active post cap: 100 per worker (409 `POST_LIMIT_ACTIVE`). Follow and save caps: 500 each per user (409 `FOLLOW_LIMIT`, 409 `SAVE_LIMIT`).
+- **Rationale:** Prevents race conditions and spam flooding across concurrent client requests without distributed locks.
+
+### 47. Endorsement Rules and Atomic Transaction Updates (Phase B7 - K7)
+- **Date:** 2026-10-17
+- **Decision:** Customers only. The caller must have at least one completed booking with that worker whose skill equals the endorsed skill (403 `NOT_ELIGIBLE`). Exactly one endorsement per customer, worker, and skill (unique index; 409 `ALREADY_ENDORSED`). No un-endorse in this version. Worker `endorsementCounts` (skill map) is updated atomically in the same multi-document transaction as the endorsement document insertion.
+- **Rationale:** Guarantees peer-to-peer endorsements are strictly grounded in completed real-world work, immune to fake reviews, vote manipulation, or desynchronized counters.
+
+### 48. Content Reporting and Privacy-Safe HMAC IP Hashing (Phase B7 - K8)
+- **Date:** 2026-10-17
+- **Decision:** Logged-in users can report posts or workers (`targetType: 'post' | 'worker'`). Client IP is never stored raw; it is saved as `ipHash` (HMAC-SHA256 of IP using a key derived from `JWT_REFRESH_SECRET`). Duplicate suppression: identical reporter, target, and reason within 24 hours returns success without creating a duplicate document. Self-reporting returns 400 `CANNOT_REPORT_SELF`. Content is not automatically hidden upon report creation (support reviews manually). Responses return a neutral acknowledgment without revealing reporter or target identities.
+- **Rationale:** Provides reliable abuse reporting while protecting reporter privacy, user data, and preventing malicious denial-of-service deplatforming.
+
+### 49. Zero Socket Events for Feed and Social in Phase B7 (Phase B7 - K9)
+- **Date:** 2026-10-17
+- **Decision:** Feed, follow, endorsement, and report events do NOT emit any Socket.io events. Clients refetch the feed via REST after creating or deleting posts.
+- **Rationale:** Prevents high-frequency socket noise, maintains the "events are hints" architecture, and leaves socket bandwidth focused on high-priority live booking and safety handshakes.
+
+
 

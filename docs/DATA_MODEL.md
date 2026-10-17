@@ -75,6 +75,17 @@ Customers and workers registered on the platform.
   },
   cancelledConfirmedAt: [Date], // Timestamps of confirmed cancellations in last 30d (select: false) (H10)
   profileComplete: Boolean, // Computed server-side on save
+  // Phase B7: Feed, Social & Endorsements counters
+  endorsementCounts: Map,   // Map of skill -> count (Number)
+  activePostCount: Number,  // default 0, max 100
+  postQuota: {
+    dayKey: String,         // YYYY-MM-DD in India Standard Time
+    count: Number           // max 10 per India calendar day
+  },
+  followCounts: {
+    follow: Number,         // max 500
+    save: Number            // max 500
+  },
   createdAt: Date,
   updatedAt: Date
 }
@@ -297,16 +308,17 @@ Work showcase feed items with photos and optional job linkage.
 ```javascript
 {
   _id: ObjectId,
-  workerId: ObjectId,
-  skill: String,
-  caption: String,          // max 140 chars, contact blocked
-  afterUrl: String,         // required
-  beforeUrl: String,        // optional
-  bookingId: ObjectId,      // optional link to verified job
-  verifiedJob: Boolean,
-  location: {
+  workerId: ObjectId,       // Worker who created the post
+  skill: String,            // Must be one of the worker's skills
+  caption: String,          // max 140 chars, NFC trimmed, contact blocked
+  afterUrl: String,         // required Cloudinary URL in worker's posts folder
+  beforeUrl: String,        // optional Cloudinary URL in worker's posts folder
+  bookingId: ObjectId,      // optional link to completed verified job (sparse)
+  verifiedJob: Boolean,     // true if backed by caller's completed booking
+  localityKey: String,
+  location: {               // Author's searchLocation (locality centroid)
     type: "Point",
-    coordinates: [Number]
+    coordinates: [Number]   // [lng, lat]
   },
   createdAt: Date
 }
@@ -314,7 +326,8 @@ Work showcase feed items with photos and optional job linkage.
 **Indexes:**
 - `{ createdAt: -1, _id: -1 }`
 - `{ location: "2dsphere" }`
-- `{ bookingId: 1 }` (unique, sparse)
+- `{ workerId: 1, createdAt: -1 }`
+- `{ bookingId: 1 }` (unique, sparse partial: `{ bookingId: { $type: "objectId" } }`)
 
 ---
 
@@ -324,14 +337,16 @@ Worker bookmarks and following relationships.
 ```javascript
 {
   _id: ObjectId,
-  fromId: ObjectId,
-  toId: ObjectId,
+  fromId: ObjectId,         // Customer or worker follower
+  toId: ObjectId,           // Target worker
   type: String,             // 'follow' | 'save'
   createdAt: Date
 }
 ```
 **Indexes:**
 - `{ fromId: 1, toId: 1, type: 1 }` (unique)
+- `{ fromId: 1, type: 1, createdAt: -1 }`
+- `{ toId: 1, type: 1 }`
 
 ---
 
@@ -341,14 +356,15 @@ Post-job skill endorsements from customer to worker.
 ```javascript
 {
   _id: ObjectId,
-  customerId: ObjectId,
-  workerId: ObjectId,
-  skill: String,
+  customerId: ObjectId,     // Customer who had a completed job with worker for skill
+  workerId: ObjectId,       // Endorsed worker
+  skill: String,            // Recognized platform skill
   createdAt: Date
 }
 ```
 **Indexes:**
 - `{ customerId: 1, workerId: 1, skill: 1 }` (unique)
+- `{ workerId: 1, skill: 1 }`
 
 ---
 
@@ -358,18 +374,19 @@ Moderation submissions sent to the support queue.
 ```javascript
 {
   _id: ObjectId,
-  targetType: String,       // 'worker' | 'customer' | 'post' | 'booking'
+  reporterId: ObjectId,     // Authenticated user submitting report
+  targetType: String,       // 'post' | 'worker' | 'booking'
   targetId: ObjectId,
-  reason: String,
+  reportedUserId: ObjectId, // Author of post or worker being reported
+  reason: String,           // 'spam' | 'inappropriate' | 'fake' | 'unsafe' | 'other'
   note: String,             // max 200 chars, contact blocked
-  reporterId: ObjectId,     // optional
-  ipHash: String,
+  ipHash: String,           // HMAC-SHA256 of client IP using key derived from JWT_REFRESH_SECRET
   createdAt: Date
 }
 ```
 **Indexes:**
 - `{ targetType: 1, targetId: 1 }`
-- `{ createdAt: -1 }`
+- `{ reporterId: 1, targetType: 1, targetId: 1, reason: 1, createdAt: -1 }`
 
 ---
 

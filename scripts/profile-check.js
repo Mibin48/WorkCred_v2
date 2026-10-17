@@ -250,7 +250,7 @@ async function run() {
     const data = await res.json();
     let hasCoordsLeak = false;
     try {
-      assertNoSensitiveFields(data);
+      assertNoSensitiveFields(data, { allowPhoneAndEmail: true });
     } catch {
       hasCoordsLeak = true;
     }

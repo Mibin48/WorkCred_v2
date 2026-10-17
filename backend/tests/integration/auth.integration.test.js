@@ -631,7 +631,17 @@ describe('backend/tests/integration/auth.integration.test.js (MongoDB In-Memory 
       { method: 'POST', path: '/api/v1/availability', body: { hours: 2 }, expected: { visitor: 401, customer: 403, worker: 403 } },
       { method: 'POST', path: '/api/v1/availability/extend', body: { hours: 1 }, expected: { visitor: 401, customer: 403, worker: 404 } },
       { method: 'DELETE', path: '/api/v1/availability', expected: { visitor: 401, customer: 403, worker: 200 } },
-      { method: 'GET', path: '/api/v1/availability/nearby', expected: { visitor: 401, customer: 400, worker: 403 } }
+      { method: 'GET', path: '/api/v1/availability/nearby', expected: { visitor: 401, customer: 400, worker: 403 } },
+      // B7 Posts, Feed, Follows, Endorsements, Reports
+      { method: 'POST', path: '/api/v1/posts', body: { skill: 'electrician' }, expected: { visitor: 401, customer: 403, worker: 403 } }, // worker profile incomplete -> 403
+      { method: 'GET', path: '/api/v1/posts/mine', expected: { visitor: 401, customer: 403, worker: 200 } },
+      { method: 'DELETE', path: '/api/v1/posts/000000000000000000000000', expected: { visitor: 401, customer: 403, worker: 404 } },
+      { method: 'GET', path: '/api/v1/feed', expected: { visitor: 401, customer: 400, worker: 400 } }, // 400 SET_AREA
+      { method: 'POST', path: '/api/v1/follows', body: { workerId: '000000000000000000000000', type: 'follow' }, expected: { visitor: 401, customer: 404, worker: 404 } },
+      { method: 'DELETE', path: '/api/v1/follows/000000000000000000000000?type=follow', expected: { visitor: 401, customer: 200, worker: 200 } },
+      { method: 'GET', path: '/api/v1/follows?type=follow', expected: { visitor: 401, customer: 200, worker: 200 } },
+      { method: 'POST', path: '/api/v1/endorsements', body: { workerId: '000000000000000000000000', skill: 'electrician' }, expected: { visitor: 401, customer: 404, worker: 403 } },
+      { method: 'POST', path: '/api/v1/reports', body: { targetType: 'worker', targetId: '000000000000000000000000', reason: 'spam' }, expected: { visitor: 401, customer: 404, worker: 404 } }
     ];
 
     for (const route of routes) {

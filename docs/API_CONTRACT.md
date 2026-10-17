@@ -38,7 +38,7 @@
 |---|---|---|---|---|---|---|---|
 | `POST` | `/auth/signup` | Register new worker or customer | Public | 201 | `{ role, name, email, phone, password }` | `{ user, accessToken, expiresIn: 900 }` + `wc_rt` cookie | `VALIDATION_ERROR`, `WEAK_PASSWORD`, `EMAIL_TAKEN`, `TOO_MANY_REQUESTS` |
 | `POST` | `/auth/login` | Authenticate email and password | Public | 200 | `{ email, password, role }` | `{ user, accessToken, expiresIn: 900 }` + `wc_rt` cookie | `VALIDATION_ERROR`, `INVALID_CREDENTIALS`, `ROLE_MISMATCH`, `ACCOUNT_DISABLED`, `ACCOUNT_LOCKED`, `TOO_MANY_REQUESTS` |
-| `POST` | `/auth/refresh` | Rotate refresh token | Public (Cookie + Header) | 200 | *(none)* (reads `wc_rt` cookie) | `{ accessToken, expiresIn: 900 }` + rotated `wc_rt` cookie | `BAD_ORIGIN`, `UNAUTHORIZED`, `SESSION_INVALID`, `SESSION_EXPIRED`, `ACCOUNT_DISABLED` |
+| `POST` | `/auth/refresh` | Rotate refresh token | Public (Cookie + Header) | 200 | *(none)* (reads `wc_rt` cookie) | `{ accessToken, expiresIn: 900 }` + rotated `wc_rt` cookie | `BAD_ORIGIN`, `UNAUTHORIZED`, `SESSION_INVALID`, `SESSION_REVOKED`, `SESSION_EXPIRED`, `ACCOUNT_DISABLED` |
 | `POST` | `/auth/logout` | Revoke session and clear cookie | Public (Cookie + Header) | 200 | *(none)* (reads `wc_rt` cookie) | `{}` + cleared `wc_rt` cookie | `BAD_ORIGIN` |
 | `POST` | `/auth/password/change` | Change password and invalidate other sessions | Logged in | 200 | `{ currentPassword, newPassword }` | `{ accessToken, expiresIn: 900 }` + fresh `wc_rt` cookie | `UNAUTHORIZED`, `VALIDATION_ERROR`, `INVALID_CREDENTIALS`, `WEAK_PASSWORD` |
 
@@ -108,7 +108,7 @@
 
 ## 4. Jobs (`/jobs`)
 
-Optional header `Idempotency-Key` (8 to 80 chars: letters, digits, dash, underscore) accepted on all mutation endpoints. Finished duplicates replay stored status and body with header `Idempotent-Replay: true`. Concurrent duplicates yield `409 REQUEST_IN_PROGRESS`. Payload mismatch on same key yields `422 KEY_REUSED`.
+Optional header `Idempotency-Key` (8 to 80 chars: letters, digits, dash, underscore) accepted on all mutation endpoints. Finished duplicates replay stored status and body with header `Idempotent-Replay: true`. Concurrent duplicates yield `409 REQUEST_IN_PROGRESS`. Payload mismatch on same key yields `422 KEY_REUSED`. Malformed keys return `400 INVALID_IDEMPOTENCY_KEY`, storage conflicts return `500 IDEMPOTENCY_ERROR`.
 
 | Method | Endpoint | Description | Access | Status | Request Body | Response Data | Error Codes |
 |---|---|---|---|---|---|---|---|
@@ -130,16 +130,22 @@ Optional header `Idempotency-Key` (8 to 80 chars: letters, digits, dash, undersc
 
 ## 9. Feed & Social (`/feed`, `/posts`, `/follows`, `/endorsements`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `GET` | `/feed` | Combined nearby feed | Logged in | Worker sees jobs & posts; Customer sees free workers & posts. |
-| `POST` | `/posts` | Create verified work post | Worker | Body: `afterUrl`, `beforeUrl`, `skill`, `caption`, `bookingId`. Contact blocked. |
-| `GET` | `/posts/mine` | List posts created by active worker | Worker | Worker's own feed timeline. |
-| `DELETE` | `/posts/:id` | Delete worker's own work post | Worker | Removes post from active feed. |
-| `POST` | `/follows` | Follow or save worker | Logged in | Body: `toId`, `type` ('follow' or 'save'). |
-| `DELETE` | `/follows/:toId` | Remove follow or save | Logged in | Query: `type`. |
-| `GET` | `/follows` | List followed or saved workers | Logged in | Filter by type. |
-| `POST` | `/endorsements` | Endorse worker skill | Customer | Permitted once per worker per skill following a completed booking. |
+### Frontend Integration Notes
+1. **Refetch After Mutation:** Feed and social events do NOT go over sockets in this phase. Clients must explicitly refetch the feed (`GET /feed`) after creating a post (`POST /posts`) or deleting a post (`DELETE /posts/:id`).
+2. **Post Photo Uploads:** Request an upload signature via `POST /uploads/sign` with `{ purpose: "post" }` before sending `afterUrl` or `beforeUrl` to `POST /posts`.
+3. **Idempotency Key:** `POST /posts` supports optional `Idempotency-Key` header (8-80 chars) to prevent duplicate post creations upon network retries.
+4. **Feed Pagination:** The `cursor` parameter is an opaque, signed token based on `(createdAt, _id)`. Never inspect or synthesize cursors on the client.
+
+| Method | Endpoint | Description | Access | Status | Request Body / Query | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `POST` | `/posts` | Create verified or standard work post | Worker (profileComplete required) | 201 | Header: `Idempotency-Key?`<br>Body: `{ skill, caption (max 140, trimmed NFC, passes containsContactInfo), afterUrl, beforeUrl?, bookingId? }`. `afterUrl` and `skill` required. Photo URLs must point to user's own `posts` Cloudinary folder. Unknown fields 400. Quotas enforced: max 10/day, max 100 active. | `{ post: { id, worker: { id, name, photoUrl, mainSkill, hasVerifiedHistory }, skill, caption, afterUrl, beforeUrl, verifiedJob: boolean, createdAt, localityName, viewer: { isFollowing: false, isSaved: false }, isMine: true } }` | `FORBIDDEN_ROLE` (403 for customer), `PROFILE_INCOMPLETE` (403), `VALIDATION_ERROR` (400), `NOT_YOUR_JOB` (403 if booking not worker's), `INVALID_STATE` (409 if booking not completed), `SKILL_MISMATCH` (409 if booking skill differs), `BOOKING_ALREADY_POSTED` (409), `POST_LIMIT_DAILY` (429 if >10/day), `POST_LIMIT_ACTIVE` (409 if >=100 active), `TOO_MANY_REQUESTS` (429 if >10/hr) |
+| `GET` | `/posts/mine` | List posts created by authenticated worker | Worker only | 200 | Query: `limit` (1-50, default 20), `cursor` (opaque) | `{ posts: [ { id, worker, skill, caption, afterUrl, beforeUrl, verifiedJob, createdAt, localityName, viewer, isMine: true } ], nextCursor }` | `FORBIDDEN_ROLE` (403 for customer), `VALIDATION_ERROR` (400 if limit invalid), `BAD_CURSOR` (400) |
+| `DELETE` | `/posts/:id` | Hard delete own work post | Worker only (Owner only) | 200 | *(none)* | `{ message: "Post deleted successfully" }`. Decrements `activePostCount` (never below 0). Repeating returns the same success. Photos stay in Cloudinary. | `FORBIDDEN_ROLE` (403 for customer), `NOT_FOUND` (404 for unknown, non-owner, or invalid ID) |
+| `GET` | `/feed` | Unified feed (nearby or following) | Logged in (Worker or Customer) | 200 | Query: `tab` (`nearby` \| `following`, default `nearby`), `limit` (1-50, default 20), `cursor` (opaque). Requires area for nearby tab (400 `SET_AREA`). Rate limit: 120 req / 10 min. | `{ items: [ { id, worker: { id, name, photoUrl, mainSkill, hasVerifiedHistory }, skill, caption, afterUrl, beforeUrl, verifiedJob, createdAt, approxDistance?: { km, label }, localityName, viewer: { isFollowing, isSaved }, isMine } ], nextCursor, highlights?: [ ... ] }`. Highlights appear only on first page of nearby tab (max 5 open jobs for workers, max 5 Free Now workers for customers). | `SET_AREA` (400 if caller has no area for nearby), `VALIDATION_ERROR` (400), `BAD_CURSOR` (400), `TOO_MANY_REQUESTS` (429) |
+| `POST` | `/follows` | Follow or save worker | Logged in (Both roles) | 200 | Body: `{ workerId, type: "follow" \| "save" }`. Target must be active, complete worker and not caller. Safe to repeat (idempotent). Caps: 500 follows, 500 saves. Limit: 120/hr. | `{ message: "Followed successfully" \| "Saved successfully", following: true }` | `CANNOT_FOLLOW_SELF` (400), `NOT_FOUND` (404 for invalid, unknown, inactive, or non-worker), `VALIDATION_ERROR` (400), `FOLLOW_LIMIT` (409 if >=500 follows), `SAVE_LIMIT` (409 if >=500 saves), `TOO_MANY_REQUESTS` (429) |
+| `DELETE` | `/follows/:workerId` | Remove follow or save relation | Logged in (Both roles) | 200 | Query: `type` (`follow` \| `save`, required). Safe to repeat. Decrements counter only when record removed. | `{ message: "Removed successfully", following: false }` | `VALIDATION_ERROR` (400 if type missing or invalid), `TOO_MANY_REQUESTS` (429) |
+| `GET` | `/follows` | List followed or saved workers | Logged in (Both roles) | 200 | Query: `type` (`follow` \| `save`, required), `limit` (1-50, default 20), `cursor`. Inactive workers skipped. Rate limit: 120 req / 10 min. | `{ workers: [ { id, name, photoUrl, mainSkill, rate: { hourly, daily, effectiveHourly }, rating, jobsCount, hasVerifiedHistory, localityName, approxDistance?: { km, label } } ], nextCursor }` | `VALIDATION_ERROR` (400 if type missing or limit invalid), `BAD_CURSOR` (400), `TOO_MANY_REQUESTS` (429) |
+| `POST` | `/endorsements` | Endorse worker skill | Customer only (profileComplete required) | 200 | Body: `{ workerId, skill }`. Must have >=1 completed booking with worker for skill. One endorsement per customer, worker, skill. Limit: 30/hr. | `{ workerId, skill, count }` (new total for skill) | `FORBIDDEN_ROLE` (403 for workers), `NOT_FOUND` (404 for unknown worker), `VALIDATION_ERROR` (400 if skill invalid), `NOT_ELIGIBLE` (403 if no completed booking for skill), `ALREADY_ENDORSED` (409), `TOO_MANY_REQUESTS` (429) |
 
 ---
 
@@ -147,15 +153,15 @@ Optional header `Idempotency-Key` (8 to 80 chars: letters, digits, dash, undersc
 
 | Method | Endpoint | Description | Access | Status | Request Body | Response Data | Error Codes |
 |---|---|---|---|---|---|---|---|
-| `POST` | `/uploads/sign` | Generate server-signed Cloudinary direct browser upload signature | Logged in | 200 | `{ purpose: "avatar" }` | `{ cloudName, apiKey, timestamp, folder, publicId, signature, uploadUrl }` | `VALIDATION_ERROR`, `UPLOADS_DISABLED` (503 if Cloudinary env vars missing), `TOO_MANY_REQUESTS` (20/hr limit) |
+| `POST` | `/uploads/sign` | Generate server-signed Cloudinary direct browser upload signature | Logged in | 200 | `{ purpose: "avatar" \| "post" }`. Folder is automatically assigned: `workcred/<NODE_ENV>/<userId>/avatar` or `workcred/<NODE_ENV>/<userId>/posts`. Rate limit: 20/hr shared across purposes. | `{ cloudName, apiKey, timestamp, folder, publicId, signature, uploadUrl }` | `VALIDATION_ERROR` (400 if purpose not avatar or post), `UPLOADS_DISABLED` (503 if Cloudinary env vars missing), `TOO_MANY_REQUESTS` (429 if >20/hr) |
 
 ---
 
 ## 11. Reports & Moderation (`/reports`)
 
-| Method | Endpoint | Description | Access | Notes |
-|---|---|---|---|---|
-| `POST` | `/reports` | Submit abuse, safety, or profile report to support inbox | Logged in | Body: `targetType`, `targetId`, `reason`, `note`. Contact blocked. |
+| Method | Endpoint | Description | Access | Status | Request Body | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `POST` | `/reports` | Submit report against post or worker | Logged in (Both roles) | 200 | Body: `{ targetType: "post" \| "worker", targetId, reason: "spam" \| "inappropriate" \| "fake" \| "unsafe" \| "other", note? (max 200, contact blocked) }`. Duplicate report within 24h suppressed (same success). Rate limit: 10/hr. | `{ message: "Report received. Support will review it." }` | `CANNOT_REPORT_SELF` (400 if reporting own post or self), `NOT_FOUND` (404 for unknown target), `VALIDATION_ERROR` (400 if targetType is booking or invalid fields), `CONTACT_INFO_BLOCKED` (400), `REPORT_LIMIT` (429 if >10/hr) |
 
 ---
 

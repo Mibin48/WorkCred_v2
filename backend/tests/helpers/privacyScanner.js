@@ -46,7 +46,10 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
       'bookingGuard',
       'cancelledConfirmedAt',
       'prevHash',
-      'hash'
+      'hash',
+      'ipHash',
+      'reportedUserId',
+      'reporterId'
     ];
 
     if (!allowJobLocation) {
@@ -67,7 +70,11 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
       forbiddenKeys.push('employerName');
     }
 
-    if (isPassportResponse) {
+    // Phase B7 & Passport: bookingId is strictly forbidden in feed, post, follow, and passport responses
+    // It is allowed on direct booking responses unless forbidden or passport response
+    const allowBookingId = optionsOrForbidden.allowBookingId !== undefined ? Boolean(optionsOrForbidden.allowBookingId) : undefined;
+    const forbidBookingId = Boolean(optionsOrForbidden.forbidBookingId);
+    if (isPassportResponse || forbidBookingId) {
       forbiddenKeys.push('bookingId');
     }
 

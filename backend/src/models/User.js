@@ -172,6 +172,24 @@ const userSchema = new mongoose.Schema(
     profileComplete: {
       type: Boolean,
       default: false
+    },
+    // Phase B7: Feed, Social & Endorsements counters
+    endorsementCounts: {
+      type: Map,
+      of: Number,
+      default: {}
+    },
+    activePostCount: {
+      type: Number,
+      default: 0
+    },
+    postQuota: {
+      dayKey: { type: String, default: '' },
+      count: { type: Number, default: 0 }
+    },
+    followCounts: {
+      follow: { type: Number, default: 0 },
+      save: { type: Number, default: 0 }
     }
   },
   {

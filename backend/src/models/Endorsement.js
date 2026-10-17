@@ -23,5 +23,6 @@ const endorsementSchema = new mongoose.Schema(
 );
 
 endorsementSchema.index({ customerId: 1, workerId: 1, skill: 1 }, { unique: true });
+endorsementSchema.index({ workerId: 1, skill: 1 });
 
 export const Endorsement = mongoose.model('Endorsement', endorsementSchema);

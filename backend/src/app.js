@@ -19,6 +19,11 @@ import { createJobsRouter } from './routes/jobs.js';
 import { createBookingsRouter } from './routes/bookings.js';
 import { createPassportRouter } from './routes/passport.js';
 import { createAvailabilityRouter } from './routes/availability.js';
+import { createPostsRouter } from './routes/posts.js';
+import { createFeedRouter } from './routes/feed.js';
+import { createFollowsRouter } from './routes/follows.js';
+import { createEndorsementsRouter } from './routes/endorsements.js';
+import { createReportsRouter } from './routes/reports.js';
 import { idempotency } from './middleware/idempotency.js';
 
 export function createApp(config = {}) {
@@ -118,6 +123,11 @@ export function createApp(config = {}) {
   const bookingsRouter = createBookingsRouter(config, authMiddleware);
   const passportRouter = createPassportRouter(config, authMiddleware);
   const availabilityRouter = createAvailabilityRouter(config, authMiddleware);
+  const postsRouter = createPostsRouter(config, authMiddleware, idempotencyMiddleware);
+  const feedRouter = createFeedRouter(config, authMiddleware);
+  const followsRouter = createFollowsRouter(config, authMiddleware);
+  const endorsementsRouter = createEndorsementsRouter(config, authMiddleware);
+  const reportsRouter = createReportsRouter(config, authMiddleware);
 
   apiRouter.use('/auth', authRouter);
   apiRouter.use('/users', usersRouter);
@@ -129,6 +139,11 @@ export function createApp(config = {}) {
   apiRouter.use('/bookings', bookingsRouter);
   apiRouter.use('/passport', passportRouter);
   apiRouter.use('/availability', availabilityRouter);
+  apiRouter.use('/posts', postsRouter);
+  apiRouter.use('/feed', feedRouter);
+  apiRouter.use('/follows', followsRouter);
+  apiRouter.use('/endorsements', endorsementsRouter);
+  apiRouter.use('/reports', reportsRouter);
 
   app.use('/api/v1', apiRouter);
 

@@ -42,6 +42,30 @@ npm start
 
 ---
 
+## Backend Commands Reference (`backend/`)
+
+All backend commands can be run from the `backend/` directory or at root using standard npm patterns:
+
+### Setup & Startup
+- `npm run setup`: Run backend initialization and environment check (`backend/scripts/setup.js`).
+- `npm start`: Start backend server with environment variables (`node --env-file=.env src/server.js`).
+- `npm run dev`: Start backend server in development mode with auto-reload (`node --env-file=.env --watch src/server.js`).
+
+### Testing & Verification
+- `npm test`: Run unit tests and contract smoke tests (`node --test tests/unit/**/*.test.js tests/smoke/**/*.test.js`).
+- `npm run test:integration`: Run all MongoDB integration suites (`node --test tests/integration/**/*.test.js`).
+- `npm run check:all`: Run master verification suite against a running local server (`auth-check`, `profile-check`, `b4-check`, `b5-check`, `b6-check`, `b7-check`).
+- `node scripts/b7-check.js`: Run standalone B7 verification script against running local server.
+- `node scripts/socket-watch.js`: Real-time socket event monitor CLI tool.
+
+### Support & Maintenance Scripts
+- `npm run support:reset-password`: Manually reset a user password via CLI.
+- `npm run support:unlock`: Unlock a rate-limited or locked account via CLI.
+- `node scripts/backfill-search-fields.js`: Backfill derived worker search fields (`mainSkill`, `rateHourlyEffective`, `searchLocation`).
+
+
+---
+
 ## Project Delivery Phases
 
 | Phase | Description |

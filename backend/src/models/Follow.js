@@ -24,5 +24,7 @@ const followSchema = new mongoose.Schema(
 );
 
 followSchema.index({ fromId: 1, toId: 1, type: 1 }, { unique: true });
+followSchema.index({ fromId: 1, type: 1, createdAt: -1 });
+followSchema.index({ toId: 1, type: 1 });
 
 export const Follow = mongoose.model('Follow', followSchema);

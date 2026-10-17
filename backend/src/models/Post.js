@@ -27,12 +27,15 @@ const postSchema = new mongoose.Schema(
     },
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'Booking',
-      default: null
+      ref: 'Booking'
     },
     verifiedJob: {
       type: Boolean,
       default: false
+    },
+    localityKey: {
+      type: String,
+      required: true
     },
     location: {
       type: {
@@ -52,7 +55,11 @@ const postSchema = new mongoose.Schema(
 );
 
 postSchema.index({ createdAt: -1, _id: -1 });
+postSchema.index({ workerId: 1, createdAt: -1 });
 postSchema.index({ location: '2dsphere' });
-postSchema.index({ bookingId: 1 }, { unique: true, sparse: true });
+postSchema.index(
+  { bookingId: 1 },
+  { unique: true, partialFilterExpression: { bookingId: { $type: 'objectId' } } }
+);
 
 export const Post = mongoose.model('Post', postSchema);

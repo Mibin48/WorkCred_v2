@@ -197,12 +197,13 @@ async function main() {
   console.log('PASS: 7. GET /workers/:id returns viewer profile with no phone or email');
 
   // 4. Fair Rate Compass check
-  const compassRes = await apiRequest('/api/v1/compass?skill=electrician&localityKey=edapally&rate=150', {
+  // Uses a skill without rateStats history in local DB (e.g. painter) so 3-tier fallback hits Tier 3 (sample baseline)
+  const compassRes = await apiRequest('/api/v1/compass?skill=painter&localityKey=edapally&rate=150', {
     headers: { 'Authorization': `Bearer ${custToken}` }
   });
   assert(compassRes.status === 200, 'Compass query failed');
   assertNoSecrets(compassRes.data);
-  assert(compassRes.data.data.note === 'Based on sample rates for now', 'Expected sample note');
+  assert(compassRes.data.data.isSample === true && compassRes.data.data.note === 'Based on sample rates for now', 'Expected sample note');
   console.log(`PASS: 8. GET /compass returns sample baseline note ("${compassRes.data.data.note}")`);
 
   // 5. Customer posts a job and prints Fair Price hint
