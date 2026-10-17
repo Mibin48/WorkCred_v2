@@ -28,6 +28,7 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
     forbiddenKeys = [
       'passwordHash',
       'password',
+      'token',
       'tokenVersion',
       'lockUntil',
       'lockLevel',

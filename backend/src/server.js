@@ -3,6 +3,7 @@ import { validateEnv } from './config/env.js';
 import { connectDB, disconnectDB } from './config/db.js';
 import { createApp } from './app.js';
 import { logger } from './utils/logger.js';
+import { initRealtime, closeRealtime } from './realtime/index.js';
 
 let server = null;
 
@@ -16,6 +17,9 @@ async function bootstrap() {
     const app = createApp(config);
     server = http.createServer(app);
 
+    // Attach Socket.io, domain event subscribers, and Free Now sweeper
+    initRealtime(server, config);
+
     server.listen(config.PORT, () => {
       logger.info(`WorkCred Backend API listening on port ${config.PORT} (NODE_ENV: ${config.NODE_ENV})`);
     });
@@ -23,6 +27,10 @@ async function bootstrap() {
     const shutdown = async (signal) => {
       logger.info(`Received ${signal}, initiating graceful shutdown...`);
 
+      // 1. Stop sweeper, close all sockets
+      closeRealtime();
+
+      // 2. Close HTTP server and database
       if (server) {
         server.close(async () => {
           logger.info('HTTP server closed');

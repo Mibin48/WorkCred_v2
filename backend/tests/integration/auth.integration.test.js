@@ -625,7 +625,13 @@ describe('backend/tests/integration/auth.integration.test.js (MongoDB In-Memory 
       { method: 'GET', path: '/api/v1/workers/000000000000000000000000/passport', expected: { visitor: 401, customer: 404, worker: 404 } },
       { method: 'GET', path: '/api/v1/workers/000000000000000000000000/passport/verify', expected: { visitor: 401, customer: 404, worker: 404 } },
       { method: 'GET', path: '/api/v1/passport/me', expected: { visitor: 401, customer: 403, worker: 200 } },
-      { method: 'PATCH', path: '/api/v1/passport/entries/00000000', body: { visible: true }, expected: { visitor: 401, customer: 403, worker: 404 } }
+      { method: 'PATCH', path: '/api/v1/passport/entries/00000000', body: { visible: true }, expected: { visitor: 401, customer: 403, worker: 404 } },
+      // B6 Availability Routes
+      { method: 'GET', path: '/api/v1/availability/me', expected: { visitor: 401, customer: 403, worker: 200 } },
+      { method: 'POST', path: '/api/v1/availability', body: { hours: 2 }, expected: { visitor: 401, customer: 403, worker: 403 } },
+      { method: 'POST', path: '/api/v1/availability/extend', body: { hours: 1 }, expected: { visitor: 401, customer: 403, worker: 404 } },
+      { method: 'DELETE', path: '/api/v1/availability', expected: { visitor: 401, customer: 403, worker: 200 } },
+      { method: 'GET', path: '/api/v1/availability/nearby', expected: { visitor: 401, customer: 400, worker: 403 } }
     ];
 
     for (const route of routes) {

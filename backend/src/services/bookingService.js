@@ -47,7 +47,11 @@ import { calculateHaversineDistance, isValidCoordinate } from '../../../shared/g
 import { containsContactInfo } from '../../../shared/containsContactInfo.js';
 import { getLocalityByKey } from '../../../shared/localities.js';
 import { isWindowAvailable, intervalsOverlap } from '../../../shared/jobRules.js';
+import { getIndiaTimeParts } from '../../../shared/calendarRules.js';
 import { logAuditEvent } from '../utils/auditLogger.js';
+import { Availability } from '../models/Availability.js';
+import { eventBus } from '../realtime/eventBus.js';
+import { closeFreeNowWindow } from './freeNowService.js';
 
 // ---------------------------------------------------------------------------
 // Transaction helper — retries up to 5 times on TransientTransactionError
@@ -245,22 +249,6 @@ export async function createDirectBooking(body, caller, config, clock) {
     err.code = 'NOT_FOUND'; err.statusCode = 404; throw err;
   }
 
-  // --- Validate scheduledAt ---
-  const scheduledAt = new Date(body.scheduledAt);
-  if (isNaN(scheduledAt.getTime())) {
-    const err = new Error('scheduledAt must be a valid ISO date'); err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
-  }
-  const minAhead = new Date(now.getTime() + 15 * 60 * 1000);   // 15 min
-  const maxAhead = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
-  if (scheduledAt < minAhead) {
-    const err = new Error('scheduledAt must be at least 15 minutes in the future');
-    err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
-  }
-  if (scheduledAt > maxAhead) {
-    const err = new Error('scheduledAt must be within 30 days');
-    err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
-  }
-
   // --- Validate hours (whole or half, 1..12) ---
   const hours = Number(body.hours);
   if (
@@ -273,17 +261,78 @@ export async function createDirectBooking(body, caller, config, clock) {
     err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
   }
 
+  // --- Validate fromFreeNow and scheduledAt ---
+  const isFromFreeNow = Boolean(body.fromFreeNow);
+  let scheduledAt;
+
+  if (isFromFreeNow) {
+    if (body.scheduledAt !== undefined && body.scheduledAt !== null) {
+      const err = new Error('scheduledAt must not be sent for Free Now bookings');
+      err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
+    }
+
+    // Server sets scheduledAt = clock now plus 30 minutes
+    scheduledAt = new Date(now.getTime() + 30 * 60 * 1000);
+
+    // Worker must have a live window (409 NOT_FREE_NOW)
+    const liveWindow = await Availability.findOne({
+      workerId: worker._id,
+      active: true,
+      expiresAt: { $gt: now }
+    });
+
+    if (!liveWindow) {
+      const err = new Error('Worker does not have an active Free Now window');
+      err.code = 'NOT_FREE_NOW'; err.statusCode = 409; throw err;
+    }
+
+    // scheduledAt must be before the window's expiresAt (409 FREE_WINDOW_ENDS_SOON)
+    if (scheduledAt >= liveWindow.expiresAt) {
+      const err = new Error('Free Now window ends in less than 30 minutes');
+      err.code = 'FREE_WINDOW_ENDS_SOON'; err.statusCode = 409; throw err;
+    }
+
+    // Weekly pattern skipped, blocked dates still enforced (J3)
+    const { dateString } = getIndiaTimeParts(scheduledAt);
+    if (Array.isArray(worker.calendar?.blockedDates)) {
+      const isBlocked = worker.calendar.blockedDates.some((b) => {
+        const bDate = typeof b === 'string' ? b : b?.date;
+        return bDate === dateString;
+      });
+      if (isBlocked) {
+        const err = new Error('Worker has blocked this date on their calendar');
+        err.code = 'BLOCKED_TODAY'; err.statusCode = 409; throw err;
+      }
+    }
+  } else {
+    // Normal direct booking validation
+    scheduledAt = new Date(body.scheduledAt);
+    if (isNaN(scheduledAt.getTime())) {
+      const err = new Error('scheduledAt must be a valid ISO date'); err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
+    }
+    const minAhead = new Date(now.getTime() + 15 * 60 * 1000);   // 15 min
+    const maxAhead = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    if (scheduledAt < minAhead) {
+      const err = new Error('scheduledAt must be at least 15 minutes in the future');
+      err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
+    }
+    if (scheduledAt > maxAhead) {
+      const err = new Error('scheduledAt must be within 30 days');
+      err.code = 'VALIDATION_ERROR'; err.statusCode = 400; throw err;
+    }
+
+    // Check calendar availability
+    if (!isWindowAvailable(worker.calendar, scheduledAt, hours)) {
+      const err = new Error('Worker is not available at that time');
+      err.code = 'NOT_AVAILABLE'; err.statusCode = 409; throw err;
+    }
+  }
+
   // --- Validate note ---
   const note = body.note ? String(body.note).trim().normalize('NFC').slice(0, 200) : '';
   if (note && containsContactInfo(note)) {
     const err = new Error('Note contains contact information which is not allowed');
     err.code = 'CONTACT_INFO_BLOCKED'; err.statusCode = 400; throw err;
-  }
-
-  // --- Check calendar availability ---
-  if (!isWindowAvailable(worker.calendar, scheduledAt, hours)) {
-    const err = new Error('Worker is not available at that time');
-    err.code = 'NOT_AVAILABLE'; err.statusCode = 409; throw err;
   }
 
   // --- Resolve agreedRate ---
@@ -359,7 +408,7 @@ export async function createDirectBooking(body, caller, config, clock) {
       hours,
       note,
       status: 'pending',
-      source: 'direct',
+      source: isFromFreeNow ? 'freenow' : 'direct',
       startCodeEnc,
       finishCodeEnc,
       locationSnapshot
@@ -376,6 +425,17 @@ export async function createDirectBooking(body, caller, config, clock) {
     userId: caller._id,
     role: 'customer',
     ip: null, // passed from route
+    bookingId: booking._id.toString(),
+    workerId: worker._id.toString()
+  });
+
+  // J4: If booking was created from Free Now, close the worker's window
+  if (isFromFreeNow) {
+    await closeFreeNowWindow(worker._id, 'booked');
+  }
+
+  // Publish booking:request event for worker
+  eventBus.publish('booking:request', {
     bookingId: booking._id.toString(),
     workerId: worker._id.toString()
   });
@@ -720,6 +780,15 @@ export async function confirmBooking(bookingId, caller, clock) {
 
   logAuditEvent('booking_confirmed', { userId: caller._id, bookingId });
 
+  // J4: Worker confirming any booking closes their Free Now window
+  await closeFreeNowWindow(caller._id, 'confirmed');
+
+  // Publish booking:created event for the customer
+  eventBus.publish('booking:created', {
+    bookingId: booking._id.toString(),
+    customerId: booking.customerId.toString()
+  });
+
   // Return detail with contact released
   return getBookingDetail(bookingId, caller, clock);
 }
@@ -818,6 +887,17 @@ export async function cancelBooking(bookingId, body, caller, clock) {
   } else {
     logAuditEvent('booking_cancelled', { userId: caller._id, bookingId, cancelledBy });
   }
+
+  // Publish booking:cancelled event for the other party only
+  const otherUserId = caller._id.toString() === booking.customerId.toString()
+    ? booking.workerId.toString()
+    : booking.customerId.toString();
+
+  eventBus.publish('booking:cancelled', {
+    bookingId: booking._id.toString(),
+    cancelledBy,
+    otherUserId
+  });
 
   return { id: booking._id.toString(), status: 'cancelled' };
 }
@@ -1084,7 +1164,14 @@ export async function startBooking(bookingId, body, caller, config, clock) {
 
   logAuditEvent('booking_started', { userId: caller._id, bookingId });
 
-  // TODO B6: Close any Free Now window here (hook for B6)
+  // J4: Starting work closes any Free Now window for this worker
+  await closeFreeNowWindow(caller._id, 'started');
+
+  // Publish booking:started event for the customer
+  eventBus.publish('booking:started', {
+    bookingId: bookingId.toString(),
+    customerId: booking.customerId.toString()
+  });
 
   const detail = await getBookingDetail(bookingId, caller, clock);
 
@@ -1415,6 +1502,12 @@ export async function finishBooking(bookingId, body, caller, config, clock) {
     if (err.code === 'INVALID_STATE') throw err;
     throw err;
   }
+
+  // Publish booking:completed event for the worker
+  eventBus.publish('booking:completed', {
+    bookingId: bookingId.toString(),
+    workerId: booking.workerId.toString()
+  });
 
   // After commit: recompute rate stats (non-fatal)
   try {

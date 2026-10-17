@@ -18,6 +18,7 @@ import { createCompassRouter } from './routes/compass.js';
 import { createJobsRouter } from './routes/jobs.js';
 import { createBookingsRouter } from './routes/bookings.js';
 import { createPassportRouter } from './routes/passport.js';
+import { createAvailabilityRouter } from './routes/availability.js';
 import { idempotency } from './middleware/idempotency.js';
 
 export function createApp(config = {}) {
@@ -116,6 +117,7 @@ export function createApp(config = {}) {
 
   const bookingsRouter = createBookingsRouter(config, authMiddleware);
   const passportRouter = createPassportRouter(config, authMiddleware);
+  const availabilityRouter = createAvailabilityRouter(config, authMiddleware);
 
   apiRouter.use('/auth', authRouter);
   apiRouter.use('/users', usersRouter);
@@ -126,6 +128,7 @@ export function createApp(config = {}) {
   apiRouter.use('/jobs', jobsRouter);
   apiRouter.use('/bookings', bookingsRouter);
   apiRouter.use('/passport', passportRouter);
+  apiRouter.use('/availability', availabilityRouter);
 
   app.use('/api/v1', apiRouter);
 

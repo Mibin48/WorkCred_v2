@@ -238,28 +238,33 @@ Append-only, cryptographically chained verified work records.
 ---
 
 ### 6. `availability`
-Ephemeral Free Now availability windows for workers.
+Ephemeral Free Now availability windows for workers (Phase B6).
 
 ```javascript
 {
   _id: ObjectId,
-  workerId: ObjectId,
+  workerId: ObjectId,           // worker participant ref
   location: {
     type: "Point",
-    coordinates: [Number]
+    coordinates: [Number]       // [lng, lat] = locality centroid (never exact private point)
   },
-  skills: [String],
-  rate: Number,
-  startsAt: Date,
-  expiresAt: Date,
-  active: Boolean,
+  localityKey: String,          // worker's locality key
+  skills: [String],             // list of worker's skill names
+  rateHourly: Number,           // worker's effective hourly rate at window creation
+  startsAt: Date,               // clock now when window was started
+  expiresAt: Date,              // window expiration time (startsAt + hours)
+  active: Boolean,              // true if currently open, false when closed/expired
+  closedReason: String,         // 'stopped' | 'expired' | 'booked' | 'confirmed' | 'accepted' | 'started' | null
+  closedAt: Date,               // timestamp when window closed (or null)
+  announcedBusy: Boolean,       // default false; set true when radar:worker_busy is emitted
   createdAt: Date
 }
 ```
 **Indexes:**
-- `{ location: "2dsphere" }`
-- `{ expiresAt: 1 }` (TTL index)
-- `{ workerId: 1, active: 1 }`
+- `{ location: "2dsphere" }` (for `$geoNear` radius search in `GET /availability/nearby`)
+- `{ expiresAt: 1 }` (TTL index with `expireAfterSeconds: 0`, passive database cleanup only)
+- `{ workerId: 1 }` (unique, partialFilterExpression: `{ active: true }` — enforces strictly one live window per worker)
+- `{ active: 1, expiresAt: 1 }` (for read-time filtering and background sweeper queries)
 
 ---
 

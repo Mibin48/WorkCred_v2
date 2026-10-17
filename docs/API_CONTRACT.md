@@ -92,7 +92,7 @@
 
 | Method | Endpoint | Description | Access | Status | Request Body / Query | Response Data | Error Codes |
 |---|---|---|---|---|---|---|---|
-| `POST` | `/bookings` | Create direct booking request | Customer (profileComplete required) | 201 | Header: `Idempotency-Key: <key>`<br>Body: `{ workerId, scheduledAt, hours (1-12), note? (max 200) }` | `{ booking: { id, status: "pending", displayStatus: "pending", skill, scheduledAt, hours, agreedRate, cashAmount, otherPartyDisplay, localityName, source: "direct", createdAt } }` | `KEY_REQUIRED` (400), `PROFILE_INCOMPLETE` (403), `FORBIDDEN_ROLE` (403), `NOT_FOUND` (404 for worker), `VALIDATION_ERROR` (400), `CONTACT_INFO_BLOCKED` (400), `NOT_AVAILABLE` (409), `TIME_CLASH` (409), `BOOKING_LIMIT` (429 if >20/hr) |
+| `POST` | `/bookings` | Create direct booking or Free Now instant booking | Customer (profileComplete required) | 201 | Header: `Idempotency-Key: <key>`<br>Body: `{ workerId, hours (1-12 in 0.5 increments), scheduledAt?, fromFreeNow?: boolean, note? (max 200) }`.<br>**When `fromFreeNow: true`:** `scheduledAt` must NOT be sent (400 if sent); server automatically sets `scheduledAt = now + 30m`; worker must have an active live window (409 `NOT_FREE_NOW`); `scheduledAt` must be before `window.expiresAt` (409 `FREE_WINDOW_ENDS_SOON`); weekly schedule pattern is bypassed while blocked dates are strictly enforced (409 `BLOCKED_TODAY`); sets `source: "freenow"` and closes window with `closedReason: "booked"`. | `{ booking: { id, status: "pending", displayStatus: "pending", skill, scheduledAt, hours, agreedRate, cashAmount, otherPartyDisplay, localityName, source: "direct" \| "freenow", createdAt } }` | `KEY_REQUIRED` (400), `PROFILE_INCOMPLETE` (403), `FORBIDDEN_ROLE` (403), `NOT_FOUND` (404 for worker), `VALIDATION_ERROR` (400), `CONTACT_INFO_BLOCKED` (400), `NOT_FREE_NOW` (409), `FREE_WINDOW_ENDS_SOON` (409), `BLOCKED_TODAY` (409), `NOT_AVAILABLE` (409), `TIME_CLASH` (409), `BOOKING_LIMIT` (429 if >20/hr) |
 | `GET` | `/bookings` | List own bookings by tab | Logged in | 200 | Query: `tab` (Customer: `upcoming`, `active`, `done`, `cancelled`; Worker: `requests`, `upcoming`, `active`, `done`, `cancelled`), `limit` (1-50, default 20), `cursor` | `{ bookings: [ { id, status, displayStatus, skill, scheduledAt, hours, agreedRate, cashAmount, otherPartyDisplay, localityName, source, createdAt } ], nextCursor }` | `VALIDATION_ERROR` (400 if tab missing or invalid), `BAD_CURSOR` (400) |
 | `GET` | `/bookings/counts` | Get count of bookings in each tab | Logged in | 200 | *(none)* | `{ counts: { [tabName]: number } }` | `UNAUTHORIZED` (401) |
 | `GET` | `/bookings/:id` | Get booking detail | Participants only | 200 | *(none)* | `{ booking: { id, status, displayStatus, skill, scheduledAt, hours, agreedRate, cashAmount, otherPartyDisplay, localityName, source, createdAt, timeline: [{ event, at, cancelledBy? }], note, startedAt, finishedAt, hoursWorked, rating, receiptAvailable, contact: { name, phone } \| null, jobLocation?: { lat, lng, localityName }, attemptsLeft?: number, lockedUntil?: string } }` | `NOT_FOUND` (404 for non-participants or invalid ID) |
@@ -165,3 +165,62 @@ Optional header `Idempotency-Key` (8 to 80 chars: letters, digits, dash, undersc
 |---|---|---|---|---|
 | `GET` | `/health` | Basic service liveness check | Public | Always returns HTTP 200 with `{ "status": "ok" }`. |
 | `GET` | `/health/ready` | Readiness check including database connectivity | Public | Returns HTTP 200 `{ "database": "connected" }` when MongoDB answers ping; HTTP 503 `SERVICE_UNAVAILABLE` otherwise. |
+
+---
+
+## 13. Free Now Availability (`/availability`)
+
+| Method | Endpoint | Description | Access | Status | Request Body / Query | Response Data | Error Codes |
+|---|---|---|---|---|---|---|---|
+| `GET` | `/availability/me` | Fetch authenticated worker's current active Free Now window | Worker only | 200 | *(none)* | `{ window: { id, startsAt, expiresAt, minutesLeft, totalHours, canExtendHours } \| null, serverTime }`. Expired windows read as `null`. | `FORBIDDEN_ROLE` (403 for customers) |
+| `POST` | `/availability` | Start a new Free Now window | Worker (profileComplete required) | 201 | Body: `{ hours: 2 \| 4 \| 8 }`. Unknown fields rejected. Rate limit: 20 changes/hour across start, extend, and stop. | `{ window: { id, startsAt, expiresAt, minutesLeft, totalHours, canExtendHours }, serverTime }`. Publishes `radar:worker_free`. | `FORBIDDEN_ROLE` (403), `PROFILE_INCOMPLETE` (403), `VALIDATION_ERROR` (400 if hours not 2, 4, 8 or extra fields), `JOB_IN_PROGRESS` (409 if worker has active in_progress booking), `BLOCKED_TODAY` (409 if today is blocked date), `ALREADY_FREE` (409 if live window exists), `FREE_LIMIT` (429 if >20 changes/hr) |
+| `POST` | `/availability/extend` | Extend current active Free Now window | Worker only | 200 | Body: `{ hours: 1 \| 2 \| 4 }`. Unknown fields rejected. Total window duration capped at 12 hours. | `{ window: { id, startsAt, expiresAt, minutesLeft, totalHours, canExtendHours }, serverTime }` | `FORBIDDEN_ROLE` (403), `VALIDATION_ERROR` (400 if hours not 1, 2, 4 or extra fields), `NO_WINDOW` (404 if no live window), `EXTEND_LIMIT` (409 with `remainingHours` if total would exceed 12h), `FREE_LIMIT` (429 if >20 changes/hr) |
+| `DELETE` | `/availability` | Stop current active Free Now window | Worker only | 200 | *(none)* (Idempotent: safe to repeat, always returns success). | `{ stopped: boolean }`. Publishes `radar:worker_busy` once with `reason: "stopped"`. | `FORBIDDEN_ROLE` (403), `FREE_LIMIT` (429 if >20 changes/hr) |
+| `GET` | `/availability/nearby` | Find live Free Now workers near customer | Customer only (caller must have localityKey or location) | 200 | Query: `radiusKm` (1-5, default 3), `skill` (optional), `limit` (1-50, default 20), `cursor` (opaque base64url). Rate limit: 120 req / 10 min. | `{ workers: [ { workerId, name, photoUrl, mainSkill, skills: [name], rate: { hourly }, rating, jobsCount, minutesLeft, approxDistance: { km, label }, localityName, hasVerifiedHistory, fairRate: { label, isSample }, canBookNow } ], nextCursor, serverTime }`. `canBookNow` is true when `minutesLeft > 30`. Coordinates, phone, and email are NEVER included. | `FORBIDDEN_ROLE` (403 for workers), `SET_AREA` (400 if customer has no area set), `VALIDATION_ERROR` (400), `BAD_CURSOR` (400), `TOO_MANY_REQUESTS` (429) |
+
+---
+
+## 14. Realtime Over Socket.io (`/socket.io`)
+
+### 14.1 Connection & Handshake Authentication
+- **Transport & Path:** Path `/socket.io`. Transports: `websocket` and `polling`. Buffer limit: 10 KB (`maxHttpBufferSize`).
+- **Authentication Source:** Access token is accepted **ONLY** in handshake auth payload: `auth: { token: "<jwt>" }`.
+- **Query String Rejected:** Passing a token in query parameter `?token=...` is rejected with `AUTH_INVALID` and never logged.
+- **CORS & Origin:** Exact allow-list matching `FRONTEND_ORIGINS` with credentials (`withCredentials: true`). Missing Origin header is allowed (native apps/scripts); unlisted Origin header is rejected with `AUTH_INVALID`.
+- **Connection Security Limits:**
+  - Max 5 simultaneous socket connections per user (`TOO_MANY_CONNECTIONS`).
+  - Max 30 connection attempts per minute per IP (`RATE_LIMITED`).
+- **Initial Handshake Event:** Upon successful connection, server emits `"ready"` `{ serverTime: string }`.
+
+### 14.2 Client-to-Server Events
+Only two client-to-server events are recognized. All other custom client events or join attempts are strictly ignored.
+Rate limit: Maximum 10 client events per minute per socket. Exceeding limit immediately disconnects socket with `RATE_LIMITED`.
+
+| Client Event | Payload | Response / Acknowledgement | Behavior |
+|---|---|---|---|
+| `auth:refresh` | `{ token: "<new_jwt>" }` | Acknowledgement: `{ ok: true }` or `{ ok: false, code: "AUTH_INVALID" }` | Validates new token; requires identical user ID and matching tokenVersion; extends socket expiry lifetime. Token for different user disconnects socket. |
+| `rooms:refresh` | *(no payload)* | *(none)* | Server reloads user profile from database and re-computes grid cell rooms and cached targeting data in memory. Used after user updates location, radius, or skills. |
+
+### 14.3 Server-to-Client Domain Events
+Events are hints, never data. Payloads carry IDs and display basics only. Clients refetch authoritative data over REST.
+
+| Event Name | Audience / Recipients | Payload Keys | Description |
+|---|---|---|---|
+| `job:new` | Workers with matching skill within their radiusKm of job location | `{ jobId, skill }` | New job posted on board |
+| `job:filled` | Same audience as `job:new` | `{ jobId, reason: "filled" \| "cancelled" }` | Job accepted, cancelled, or expired |
+| `radar:worker_free` | Customers within 5 km of worker's locality centroid | `{ workerId }` | Worker started Free Now window |
+| `radar:worker_busy` | Same audience as `radar:worker_free` | `{ workerId, reason }` (`"stopped" \| "expired" \| "booked" \| "confirmed" \| "accepted" \| "started"`) | Free Now window closed |
+| `booking:request` | The worker participant only (`user:<workerId>`) | `{ bookingId }` | Customer requested a direct or Free Now booking |
+| `booking:created` | The customer participant only (`user:<customerId>`) | `{ bookingId }` | Worker confirmed direct booking or accepted posted job |
+| `booking:started` | The customer participant only (`user:<customerId>`) | `{ bookingId }` | Worker started job (code verified) |
+| `booking:completed` | The worker participant only (`user:<workerId>`) | `{ bookingId }` | Customer finished job (payment & review completed) |
+| `booking:cancelled` | The OTHER party only (never canceller) | `{ bookingId, cancelledBy }` | Booking cancelled or declined |
+
+### 14.4 Token Lifetime & Reconnection Rules
+1. **Refetch on Ready:** Clients must re-fetch their active view data over REST upon receiving the `"ready"` event (and after every reconnect). Missed events are never queued or replayed.
+2. **Token Refresh Sequence:** Refresh tokens over REST (`POST /api/v1/auth/refresh`) first; once a fresh access token is acquired, emit `auth:refresh` over the existing socket.
+3. **Expiry Disconnect:** A connected socket whose token expiry time has passed by more than 60 seconds without refresh is disconnected by server with `AUTH_EXPIRED`.
+4. **Periodic Revalidation:** Server re-verifies all active sockets every 60 seconds against database. Sockets belonging to disabled accounts or accounts with modified `tokenVersion` (e.g. password reset) are disconnected immediately with `AUTH_INVALID`.
+5. **Never Put Token in URL:** Tokens must never appear in query parameters or URL paths.
+6. **Rooms Refresh:** Emit `rooms:refresh` immediately after updating area (`localityKey`), skills, or `radiusKm`.
+

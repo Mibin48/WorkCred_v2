@@ -218,3 +218,37 @@ Both start and finish handshakes use separate attempt counters (`startCodeAttemp
 - **The Sole Exception:** `GET /bookings/:id` returns `jobLocation: { lat, lng, localityName }` strictly to the worker participant, and strictly while the booking status is `confirmed` or `in_progress`.
 - The customer never receives worker coordinates. In all other booking states (`pending`, `completed`, `cancelled`, `expired`, `missed`), `jobLocation` is omitted from the response.
 
+---
+
+## 9. Realtime & Free Now Security Architecture (Phase B6)
+
+### 9.1 Realtime Handshake Authentication
+1. **Handshake Token Only:** Access tokens are accepted exclusively within the handshake auth payload: `auth: { token: "<jwt>" }`.
+2. **Query String Rejection:** Passing a token in query parameter `?token=...` is immediately rejected with `AUTH_INVALID` and discarded without being logged.
+3. **CORS and Origin Allowlist:** Checked strictly against `FRONTEND_ORIGINS`. An absent Origin header is accepted (native apps/testing); an unlisted Origin header is rejected with `AUTH_INVALID`.
+4. **Credential Verification:** The JWT is verified using `JWT_ACCESS_SECRET`. The database is queried to guarantee the user exists, is active (`isActive: true`), and that the token's `tokenVersion` matches the current record in the database.
+
+### 9.2 Realtime Security Limits & DoS Mitigation
+1. **Connection Attempts:** Limited to a maximum of 30 connection attempts per minute per IP address (`RATE_LIMITED`).
+2. **Simultaneous Sockets:** Capped at 5 concurrent socket connections per user (`TOO_MANY_CONNECTIONS`).
+3. **Payload Buffering:** Max HTTP buffer size is pinned to 10 KB (`maxHttpBufferSize`) to avoid memory exhaustion attacks.
+4. **Client Event Rate Limiting:** A connected socket may send at most 10 events per minute. Sending more immediately disconnects the socket with reason `RATE_LIMITED`.
+5. **No Client Room Joins:** Clients cannot emit join or leave room events. Any unrecognized client events are silently ignored.
+
+### 9.3 In-Process Recipient Filtering & Privacy Enclaves
+1. **Coarse Grid Cells:** Sockets automatically join server-assigned rooms based on 0.05° geographic grid cells (`w:<x>:<y>` for workers, `c:<x>:<y>` for customers) and personal room `user:<userId>`.
+2. **Fine Server Filtering:** Before broadcasting any event, the server extracts target candidate sockets from cell rooms and executes pure mathematical filter functions (`recipientFilter.js`) against cached server-memory metadata:
+   - `filterWorkersForJob`: Verifies worker has matching skill and that distance between job locality centroid and worker origin point does not exceed the worker's configured `radiusKm`.
+   - `filterCustomersForRadar`: Verifies distance between worker's locality centroid and customer origin point is within 5.0 km.
+3. **Events as Hints (J1):** Domain events carry only IDs and minimal display status. Payloads never include contact numbers, email addresses, names beyond established list items, notes, or coordinates. Clients refetch authoritative data via authenticated REST endpoints.
+
+### 9.4 Token Lifetime, Revalidation, and Grace Period
+1. **Token Lifetime & Grace Period:** Sockets track token expiration (`exp`). If token expiration has passed by more than 60 seconds without an `auth:refresh` exchange, the socket is severed with reason `AUTH_EXPIRED`.
+2. **Token Refresh:** Clients send `auth:refresh` with a freshly signed token. The server verifies that the new token belongs to the identical user and matches current `tokenVersion`. Supplying a different user's token or invalid token disconnects the socket.
+3. **Periodic Revalidation (`revalidateAll`):** Every 60 seconds, the server re-queries active connected users from MongoDB. Any user account that was disabled (`isActive: false`) or whose `tokenVersion` was incremented (e.g., following a password change or security revocation) is terminated immediately with `AUTH_INVALID`.
+
+### 9.5 Free Now Privacy and Centroid Constraints (J2)
+1. **Centroid Storage:** The `availability` document stores `location` as the centroid of the worker's selected locality (`searchLocation`), never the worker's private exact residence coordinates.
+2. **Approximate Distances:** Customer distances to Free Now workers in `GET /availability/nearby` are computed using Haversine math and formatted into rounded human-readable approximations (e.g., `"2.5 km away"`), preventing trilateration attacks.
+
+

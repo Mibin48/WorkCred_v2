@@ -340,8 +340,9 @@ describe('backend/tests/integration/b5.integration.test.js (B5 Bookings, Handsha
       const customer2 = await createCustomer('c_ov2');
       const worker = await createWorker('w_ov');
 
-      const baseTime = Date.now() + 5 * 60 * 60 * 1000;
-      const start1 = new Date(baseTime).toISOString();
+      const baseDate = new Date(getFutureAvailableSlot(1, 4));
+      const baseTime = baseDate.getTime();
+      const start1 = baseDate.toISOString();
 
       // Booking 1: 2 hours (e.g. T to T+2h)
       const res1 = await fetch(`${baseUrl}/api/v1/bookings`, {
@@ -434,7 +435,7 @@ describe('backend/tests/integration/b5.integration.test.js (B5 Bookings, Handsha
       const customer = await createCustomer('c_enc');
       const worker = await createWorker('w_enc');
 
-      const future = new Date(Date.now() + 6 * 60 * 60 * 1000).toISOString();
+      const future = getFutureAvailableSlot(1, 1);
       const res = await fetch(`${baseUrl}/api/v1/bookings`, {
         method: 'POST',
         headers: {
@@ -486,7 +487,7 @@ describe('backend/tests/integration/b5.integration.test.js (B5 Bookings, Handsha
       const outsiderCust = await createCustomer('c_outsider');
       const outsiderWork = await createWorker('w_outsider');
 
-      const future = new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString();
+      const future = getFutureAvailableSlot(1, 1);
       const createRes = await fetch(`${baseUrl}/api/v1/bookings`, {
         method: 'POST',
         headers: {
@@ -550,7 +551,7 @@ describe('backend/tests/integration/b5.integration.test.js (B5 Bookings, Handsha
       const customer = await createCustomer('c_cont');
       const worker = await createWorker('w_cont');
 
-      const future = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString();
+      const future = getFutureAvailableSlot(1, 1);
       const createRes = await fetch(`${baseUrl}/api/v1/bookings`, {
         method: 'POST',
         headers: {

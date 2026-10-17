@@ -11,6 +11,8 @@ import { calculateHaversineDistance } from '../../../shared/geo.js';
 import { formatApproxDistance, validateJobInput, intervalsOverlap, isWindowAvailable, encodeCursor, decodeCursor } from '../../../shared/jobRules.js';
 import { generate4DigitCode, encryptCode } from '../../../shared/codesCrypto.js';
 import { getFairRateInfo } from './compass.js';
+import { eventBus } from '../realtime/eventBus.js';
+import { closeFreeNowWindow } from '../services/freeNowService.js';
 
 export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) {
   const router = express.Router();
@@ -101,6 +103,13 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
       logAuditEvent('job_created', {
         jobId: job._id.toString(),
         customerId: user._id.toString()
+      });
+
+      // Domain event for realtime targeting
+      eventBus.publish('job:new', {
+        jobId: job._id.toString(),
+        skill: job.skill,
+        searchLocation: job.searchLocation
       });
 
       // Fair Price hint
@@ -563,6 +572,25 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
           bookingId: booking._id.toString()
         });
 
+        // J4: Worker accepting a job closes their Free Now window
+        await closeFreeNowWindow(user._id, 'accepted');
+
+        // Publish booking:created for the customer
+        eventBus.publish('booking:created', {
+          bookingId: booking._id.toString(),
+          customerId: job.customerId.toString()
+        });
+
+        // If the job was filled, broadcast job:filled
+        if (claimResult.status === 'filled') {
+          eventBus.publish('job:filled', {
+            jobId: job._id.toString(),
+            reason: 'filled',
+            skill: job.skill,
+            searchLocation: job.searchLocation
+          });
+        }
+
         const responseData = {
           bookingId: booking._id.toString(),
           status: 'confirmed',
@@ -666,6 +694,27 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
         jobId: job._id.toString(),
         customerId: user._id.toString()
       });
+
+      // Broadcast job:filled with reason 'cancelled'
+      eventBus.publish('job:filled', {
+        jobId: job._id.toString(),
+        reason: 'cancelled',
+        skill: job.skill,
+        searchLocation: job.searchLocation
+      });
+
+      // Notify workers of cancelled bookings
+      const affectedBookings = await Booking.find({
+        jobId: job._id,
+        status: 'cancelled'
+      }).select('_id workerId');
+      for (const b of affectedBookings) {
+        eventBus.publish('booking:cancelled', {
+          bookingId: b._id.toString(),
+          cancelledBy: 'customer',
+          otherUserId: b.workerId.toString()
+        });
+      }
 
       return res.status(200).json(formatSuccess({ id: job._id.toString(), status: 'cancelled' }, 'Job cancelled successfully'));
     } catch (err) {

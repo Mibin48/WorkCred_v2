@@ -157,3 +157,48 @@ This document records key architectural, security, and product design decisions 
 - **Decision:** Booking creation (overlap check + insert + worker `bookingGuard` update) and booking finish (booking completion + passport entry creation + worker head/stats update) execute inside MongoDB multi-document transactions with automated retry on `TransientTransactionError` (up to 5 attempts).
 - **Rationale:** Guarantees zero double-booking, race conditions, gap/fork in passport entry sequences, or desynchronization between booking completion and passport issuance.
 
+---
+
+## 2026-10-17
+
+### 33. Events Are Hints, Never Data (Phase B6 - J1)
+- **Date:** 2026-10-17
+- **Decision:** Socket.io event payloads carry IDs and display basics only. Clients refetch authoritative data over REST after receiving any event and after every (re)connect. The backend performs no message replay, queuing, or buffering of missed events.
+- **Rationale:** Keeps realtime simple, idempotent, and resilient; REST remains the single source of truth so dropped or missed socket events never corrupt application state or lose data.
+
+### 34. Free Now Location Privacy and Centroid Storage (Phase B6 - J2)
+- **Date:** 2026-10-17
+- **Decision:** Free Now availability windows store the worker's `searchLocation` (locality centroid GeoJSON Point), never their exact private residence point. In `GET /availability/nearby`, customer origin follows the B4 rule (exact private point if set, else locality centroid). Returned distances are approximate and rounded to the nearest 0.5 km. No coordinates are ever included in any API response or Socket event.
+- **Rationale:** Prevents worker tracking or home location reverse-engineering while providing sufficient geographic precision for instant local matching.
+
+### 35. Free Now Calendar Override and Blocked Dates (Phase B6 - J3)
+- **Date:** 2026-10-17
+- **Decision:** Going Free Now explicitly overrides the worker's recurring weekly availability pattern (active action beats passive pattern), but NOT explicit blocked calendar dates. If the current Indian calendar date is blocked, starting Free Now returns HTTP 409 `BLOCKED_TODAY`. Free Now instant bookings similarly bypass weekly availability rules while strictly respecting blocked dates.
+- **Rationale:** Honors conscious, immediate worker availability without compromising worker vacation or explicitly blocked personal dates.
+
+### 36. Deterministic Window Closure Triggers (Phase B6 - J4)
+- **Date:** 2026-10-17
+- **Decision:** A Free Now window closes under six specific conditions with tracked `closedReason`: worker stops it (`stopped`), window expires (`expired`), a Free Now booking is created (`booked`), worker confirms ANY direct booking (`confirmed`), worker accepts a job post (`accepted`), or worker starts a job (`started`). A declined or cancelled Free Now booking does NOT reopen the window (worker taps again).
+- **Rationale:** Guarantees workers broadcasting live availability are genuinely ready to work right now and not engaged in parallel assignments.
+
+### 37. Read-Time Expiry Rule Everywhere and Passive Sweeper (Phase B6 - J5)
+- **Date:** 2026-10-17
+- **Decision:** Expiry is strictly a read-time filter across all endpoints and queries (`expiresAt > now`). An in-process background sweeper running every 30 seconds atomically marks expired windows (`closedReason: "expired"`) and announces `radar:worker_busy` once. Correctness never relies on sweeper execution or MongoDB TTL index cleanup. All time calculations use the injectable `clock` module.
+- **Rationale:** Guarantees zero latency in removing expired workers from searches even if the background sweeper is delayed or halted.
+
+### 38. Grid Cell Rooms and Precise Server-Side Recipient Filtering (Phase B6 - J6)
+- **Date:** 2026-10-17
+- **Decision:** Socket.io rooms are partitioned by 0.05° geographic grid cells (`w:<cellX>:<cellY>` for workers, `c:<cellX>:<cellY>` for customers) as a coarse first filter. Clients cannot choose rooms or emit custom join events. Before emitting, the server evaluates pure filtering functions against per-socket cached memory data (role, skills, radius, exact distance).
+- **Rationale:** Prevents client spoofing, prevents message leakage to uninterested clients, and enforces strict cryptographic privacy boundaries on real-time event dissemination.
+
+### 39. Single Process Local Architecture (Phase B6 - J7)
+- **Date:** 2026-10-17
+- **Decision:** Built for a single Node.js process local instance. The in-process event bus and memory Socket.io adapter are self-contained. Multi-instance horizontal scaling would require a shared Redis/Mongo pub-sub adapter.
+- **Rationale:** Simplicity and zero-dependency local development footprint in accordance with project constraints.
+
+### 40. Free Now Booking Window Boundary and Immediate Confirmation (Phase B6 - J8)
+- **Date:** 2026-10-17
+- **Decision:** When creating a booking from Free Now (`fromFreeNow: true`), the booking's `scheduledAt` is set automatically to `clock.now() + 30 minutes` and must start before `window.expiresAt` (else HTTP 409 `FREE_WINDOW_ENDS_SOON`). The total requested booking hours (`hours`) are not constrained by the Free Now window duration. The worker must still explicitly confirm the booking.
+- **Rationale:** Allows customers to book workers for substantive multi-hour jobs starting immediately while giving the worker final confirmation control.
+
+
