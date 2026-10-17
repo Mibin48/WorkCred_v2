@@ -11,11 +11,20 @@
 export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
   let forbiddenKeys;
   let allowPhoneAndEmail = false;
+  let allowPhone = false;
+  let allowJobLocation = false;
+  let allowEmployerName = false;
+  let isPassportResponse = false;
 
   if (Array.isArray(optionsOrForbidden)) {
     forbiddenKeys = optionsOrForbidden;
   } else {
     allowPhoneAndEmail = Boolean(optionsOrForbidden.allowPhoneAndEmail);
+    allowPhone = Boolean(optionsOrForbidden.allowPhone) || allowPhoneAndEmail;
+    allowJobLocation = Boolean(optionsOrForbidden.allowJobLocation);
+    allowEmployerName = Boolean(optionsOrForbidden.allowEmployerName);
+    isPassportResponse = Boolean(optionsOrForbidden.isPassportResponse);
+
     forbiddenKeys = [
       'passwordHash',
       'password',
@@ -25,22 +34,51 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
       'failedLoginCount',
       'tokenHash',
       'replacedByHash',
-      'location',
-      'coordinates',
-      'lat',
-      'lng',
-      'latitude',
-      'longitude',
-      'searchLocation',
       'startCodeEnc',
       'finishCodeEnc',
       'passportHead',
-      'penaltyCounters'
+      'penaltyCounters',
+      'startCodeLockUntil',
+      'finishCodeLockUntil',
+      'startCodeAttempts',
+      'finishCodeAttempts',
+      'bookingGuard',
+      'cancelledConfirmedAt',
+      'prevHash',
+      'hash'
     ];
+
+    if (!allowJobLocation) {
+      forbiddenKeys.push(
+        'location',
+        'coordinates',
+        'lat',
+        'lng',
+        'latitude',
+        'longitude',
+        'searchLocation',
+        'locationSnapshot',
+        'startedGeo'
+      );
+    }
+
+    if (!allowEmployerName) {
+      forbiddenKeys.push('employerName');
+    }
+
+    if (isPassportResponse) {
+      forbiddenKeys.push('bookingId');
+    }
+
+    if (!allowPhone) {
+      forbiddenKeys.push('phone');
+    }
+
     if (!allowPhoneAndEmail) {
-      forbiddenKeys.push('phone', 'email');
+      forbiddenKeys.push('email');
     }
   }
+
   const violations = [];
 
   function scan(val, path = '') {
@@ -53,9 +91,14 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
 
     for (const [key, value] of Object.entries(val)) {
       const currentPath = path ? `${path}.${key}` : key;
-      if (forbiddenKeys.includes(key)) {
+
+      // Special allowance: jobLocation may contain lat and lng if allowJobLocation is true
+      if (allowJobLocation && (key === 'lat' || key === 'lng') && path.endsWith('jobLocation')) {
+        // permitted
+      } else if (forbiddenKeys.includes(key)) {
         violations.push(`Forbidden field "${key}" detected at path "${currentPath}"`);
       }
+
       if (typeof value === 'object' && value !== null) {
         scan(value, currentPath);
       }
@@ -68,3 +111,19 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
     throw new Error(`Privacy scan failed! Sensitive data leaked:\n${violations.join('\n')}`);
   }
 }
+
+/**
+ * Asserts that NO response contains the actual 4-digit startCode or finishCode
+ * (used everywhere outside of GET /bookings/:id/codes).
+ */
+export function assertNoRealBookingCodes(payload, startCode, finishCode) {
+  if (!startCode && !finishCode) return;
+  const payloadStr = typeof payload === 'string' ? payload : JSON.stringify(payload);
+  if (startCode && payloadStr.includes(String(startCode))) {
+    throw new Error(`Privacy scan failed! startCode "${startCode}" leaked in payload`);
+  }
+  if (finishCode && payloadStr.includes(String(finishCode))) {
+    throw new Error(`Privacy scan failed! finishCode "${finishCode}" leaked in payload`);
+  }
+}
+

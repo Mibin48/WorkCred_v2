@@ -8,6 +8,7 @@ import { VALID_SKILLS } from '../../../shared/profileRules.js';
 import { getLocalityByKey } from '../../../shared/localities.js';
 import { SAMPLE_BASELINES, fairLabel, pickSource } from '../../../shared/compassMath.js';
 import { formatApproxDistance, encodeCursor, decodeCursor } from '../../../shared/jobRules.js';
+import { getPublicPassport, verifyPassport } from '../services/passportService.js';
 
 export function createWorkersRouter(config, authMiddleware) {
   const router = express.Router();
@@ -447,7 +448,40 @@ export function createWorkersRouter(config, authMiddleware) {
         endorsements: {} // Filled in Phase B7
       };
 
+      // B5: Add history check (historyCheck: { status, records, privateIncludedCount })
+      // runChainVerification is imported from passportService
+      const { runChainVerification } = await import('../services/passportService.js');
+      const historyCheckResult = await runChainVerification(worker._id);
+      responseData.historyCheck = historyCheckResult;
+
       return res.status(200).json(formatSuccess({ worker: responseData }, 'Worker profile retrieved'));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * GET /workers/:id/passport
+   * Visible passport entries for a worker (logged in, both roles).
+   * Same 404 as /workers/:id for invalid/inactive/incomplete/non-worker ids.
+   */
+  router.get('/:id/passport', requireAuth, workersLimiter, async (req, res, next) => {
+    try {
+      const result = await getPublicPassport(req.params.id, req.query);
+      return res.status(200).json(formatSuccess(result, 'Passport retrieved'));
+    } catch (err) {
+      next(err);
+    }
+  });
+
+  /**
+   * GET /workers/:id/passport/verify
+   * Chain integrity check. Returns { status, records } only.
+   */
+  router.get('/:id/passport/verify', requireAuth, workersLimiter, async (req, res, next) => {
+    try {
+      const result = await verifyPassport(req.params.id);
+      return res.status(200).json(formatSuccess(result, 'Chain verified'));
     } catch (err) {
       next(err);
     }

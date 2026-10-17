@@ -101,3 +101,59 @@ This document records key architectural, security, and product design decisions 
 - **Date:** 2026-10-16
 - **Decision:** Claiming a job slot executes via a single atomic conditional update that increments `acceptedCount` only when `status === 'open'`, `startAt > now`, and `acceptedCount < workersNeeded`, flipping `status` to `'filled'` when `acceptedCount + 1 === workersNeeded`. If booking creation fails or worker calendar/booking clash checks fail post-claim, the increment is cleanly decremented and the job is reopened.
 - **Rationale:** Guarantees zero overselling of job slots under high concurrency without requiring multi-document replica-set transactions.
+
+### 22. Hidden Until Tapped Code Retrieval (Phase B5 - H1)
+- **Date:** 2026-10-16
+- **Decision:** Booking details returned by `GET /bookings/:id` never contain start or finish codes. A separate endpoint `GET /bookings/:id/codes` returns codes exclusively to the customer participant while status is `confirmed` or `in_progress` with `Cache-Control: no-store`.
+- **Rationale:** Enforces "hidden until tapped" in UI, prevents shoulder-surfing, avoids caching codes in HTTP caches/service workers, and prevents workers from accessing codes ahead of arrival.
+
+### 23. Cash Amount Calculation and Hours Worked (Phase B5 - H2)
+- **Date:** 2026-10-16
+- **Decision:** `cashAmount = agreedRate (rupees/hr) * bookedHours`. Passport hours = `hoursWorked = minutes(startedAt, finishedAt) / 60`, rounded to 2 decimals (never negative). Receipt wording is strictly "Cash payment reported by customer" (never "verified payment").
+- **Rationale:** Prevents disputes over rate adjustments on cash handshakes; cleanly separates financial expectation from physical duration logged to the Passport.
+
+### 24. Crockford Base32 Record ID (Phase B5 - H3)
+- **Date:** 2026-10-16
+- **Decision:** Every passport entry is assigned a unique 8-character Crockford base32 identifier (`recordId`, omitting ambiguous characters I, L, O, U). It is stored with a unique index. It is not derived from or included in the cryptographic hash, and no hash or fingerprint is ever returned by public endpoints.
+- **Rationale:** Provides short, human-readable, auditable, and typo-resistant public references without leaking cryptographic hash chain internals.
+
+### 25. Read-Time Booking Expiry and Missed States (Phase B5 - H4)
+- **Date:** 2026-10-16
+- **Decision:** A pending booking whose `scheduledAt <= now` is evaluated as `displayStatus: "expired"`. A confirmed booking whose execution window (`scheduledAt + hours`) has passed without starting is evaluated as `displayStatus: "missed"`. Neither blocks worker availability. Stored status remains unchanged; no cron job is required.
+- **Rationale:** Eliminates ghost schedule locks without operational background worker overhead or race conditions with background schedulers.
+
+### 26. Dynamic Contact and Job Location Release (Phase B5 - H5)
+- **Date:** 2026-10-16
+- **Decision:** Counterparty name and phone appear in `GET /bookings/:id` strictly while status is `confirmed` or `in_progress`. Email is never released. Exact job location `{ lat, lng, localityName }` is released exclusively to the worker participant while `confirmed` or `in_progress`.
+- **Rationale:** Protects user privacy before confirmation and after completion/cancellation. This is the single, documented exception to the system-wide "no coordinates in responses" rule, enforced strictly by the privacy scanner.
+
+### 27. Booking Source Tracking (Phase B5 - H6)
+- **Date:** 2026-10-16
+- **Decision:** Bookings created through the direct booking API have `source: "direct"`. Job board bookings have `source: "job"`. Future instant bookings will use `source: "freenow"`.
+- **Rationale:** Cleanly identifies booking origin for UI tab filtering, audit tracking, and fee/guarantee policies across phases.
+
+### 28. Passport Entry Chain Fields and Employer Masking (Phase B5 - H7)
+- **Date:** 2026-10-16
+- **Decision:** Passport entries store `workerId, bookingId, seq, recordId, skill, date, hours, rating, comment, employerName, visible, maskEmployer, prevHash, hash`. The SHA-256 hash strictly covers `employerName` (real customer name), but not presentation flags `visible` or `maskEmployer`. Pure helper `maskEmployerName("Ravi Kumar")` yields `"R*** K."`.
+- **Rationale:** Secures the cryptographic integrity of the work record against retroactive forgery while allowing workers to safely curate their public profile visibility and anonymity settings.
+
+### 29. Maintained Worker PassportStats and PassportHead (Phase B5 - H8)
+- **Date:** 2026-10-16
+- **Decision:** The worker document maintains `passportStats` (`jobs, totalHours, ratingSum, avgRating, skillCounts, topSkills`) and `passportHead` (`seq, hash`). `avgRating` is derived as `ratingSum / jobs` rounded to 2 decimals.
+- **Rationale:** Enables fast worker search sorting by rating and job count without scanning passport entries.
+
+### 30. Internal Quality Flags (Phase B5 - H9)
+- **Date:** 2026-10-16
+- **Decision:** Internal flags are computed on booking completion: `shortJob` (`hoursWorked < 0.25`) and `repeatedPair` (>=3 completed bookings between same customer and worker in last 30 days). Stored with `select: false` on Booking, never exposed to users.
+- **Rationale:** Provides silent operational telemetry to flag potential collusion, spam, or platform gaming.
+
+### 31. Worker Cancellation Counter and Warning (Phase B5 - H10)
+- **Date:** 2026-10-16
+- **Decision:** Cancelling a `confirmed` booking records a timestamp in `cancelledConfirmedAt`. Declining a `pending` booking does not count. When a worker accumulates 3 cancellations within 30 days, the cancel response returns a `warning: "REPEATED_CANCELLATIONS"`.
+- **Rationale:** Deters unreliable last-minute worker cancellations without penalizing prompt declination of pending booking requests.
+
+### 32. Multi-Document Transactions for Handshake Safety (Phase B5 - H11)
+- **Date:** 2026-10-16
+- **Decision:** Booking creation (overlap check + insert + worker `bookingGuard` update) and booking finish (booking completion + passport entry creation + worker head/stats update) execute inside MongoDB multi-document transactions with automated retry on `TransientTransactionError` (up to 5 attempts).
+- **Rationale:** Guarantees zero double-booking, race conditions, gap/fork in passport entry sequences, or desynchronization between booking completion and passport issuance.
+

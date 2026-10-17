@@ -115,6 +115,7 @@ describe('backend/tests/integration/models.integration.test.js (In-Memory MongoD
     const entry = new PassportEntry({
       workerId: new mongoose.Types.ObjectId(),
       bookingId: new mongoose.Types.ObjectId(),
+      recordId: 'REC12345',
       seq: 1,
       skill: 'electrician',
       date: new Date('2026-10-16'),

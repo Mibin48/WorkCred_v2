@@ -23,7 +23,7 @@ export function idempotency(options = { required: false }) {
 
     if (!rawKey) {
       if (options.required) {
-        return next(new AppError('MISSING_IDEMPOTENCY_KEY', 'Idempotency-Key header is required for this operation', 400));
+        return next(new AppError('KEY_REQUIRED', 'Idempotency-Key header is required for this operation', 400));
       }
       return next();
     }

@@ -8,6 +8,13 @@ const passportEntrySchema = new mongoose.Schema(
       required: true,
       immutable: true
     },
+    // Crockford base32 8-char unique Record ID (H3). NOT derived from hash.
+    recordId: {
+      type: String,
+      required: true,
+      unique: true,
+      immutable: true
+    },
     bookingId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Booking',

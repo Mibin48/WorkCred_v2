@@ -11,14 +11,24 @@ export function errorHandler(err, req, res, next) {
     return res.status(400).json(formatError(ErrorCodes.BAD_JSON, 'Invalid JSON payload received'));
   }
 
-  // Handle known AppError
+  // Handle known AppError or error with statusCode
   if (err instanceof AppError) {
-    return res.status(err.statusCode).json(formatError(err.code, err.message, err.details));
+    const extra = err.extra || (err.attemptsLeft !== undefined ? { attemptsLeft: err.attemptsLeft } : undefined);
+    return res.status(err.statusCode).json(formatError(err.code, err.message, err.details, extra));
+  }
+  if (err && typeof err.statusCode === 'number') {
+    const extra = {};
+    if (err.attemptsLeft !== undefined) extra.attemptsLeft = err.attemptsLeft;
+    if (err.minutesLeft !== undefined) extra.minutesLeft = err.minutesLeft;
+    if (err.earliestAt !== undefined) extra.earliestAt = err.earliestAt;
+    const extraPayload = Object.keys(extra).length > 0 ? extra : undefined;
+    return res.status(err.statusCode).json(formatError(err.code || 'BAD_REQUEST', err.message, err.details, extraPayload));
   }
 
   // Log unhandled errors safely without stack traces leaking to client
   logger.error({
     err: err.message,
+    stack: err.stack,
     path: req.originalUrl || req.url,
     method: req.method
   }, 'Unhandled application error');

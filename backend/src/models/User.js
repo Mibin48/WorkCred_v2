@@ -140,7 +140,9 @@ const userSchema = new mongoose.Schema(
     passportStats: {
       jobs: { type: Number, default: 0 },
       avgRating: { type: Number, default: 0 },
+      ratingSum: { type: Number, default: 0 },   // sum of all ratings, used to derive avgRating (H8)
       totalHours: { type: Number, default: 0 },
+      skillCounts: { type: mongoose.Schema.Types.Mixed, default: {} }, // { skill: count } (H8)
       topSkills: { type: [String], default: [] }
     },
     passportHead: {
@@ -153,6 +155,19 @@ const userSchema = new mongoose.Schema(
     },
     penaltyCounters: {
       cancellations: { type: Number, default: 0 }
+    },
+    // Race-safety guard for concurrent booking creation (BOOK-1)
+    bookingGuard: {
+      type: Number,
+      default: 0,
+      select: false
+    },
+    // Timestamps of confirmed-booking cancellations by this worker (H10)
+    // Used to count cancellations in the last 30 days.
+    cancelledConfirmedAt: {
+      type: [Date],
+      default: [],
+      select: false  // internal only
     },
     profileComplete: {
       type: Boolean,

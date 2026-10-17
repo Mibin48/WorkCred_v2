@@ -59,9 +59,11 @@ Customers and workers registered on the platform.
   },
   passportStats: {
     jobs: Number,           // starts at 0
-    avgRating: Number,      // starts at 0
+    avgRating: Number,      // derived: ratingSum / jobs (2 decimals, starts at 0)
+    ratingSum: Number,      // starts at 0 (H8)
     totalHours: Number,     // starts at 0
-    topSkills: [String]     // starts at []
+    skillCounts: Object,    // { [skill]: count } (H8)
+    topSkills: [String]     // up to 3 skills sorted by count then name (H8)
   },
   passportHead: {
     seq: Number,            // starts at 0
@@ -71,6 +73,7 @@ Customers and workers registered on the platform.
   penaltyCounters: {
     cancellations: Number
   },
+  cancelledConfirmedAt: [Date], // Timestamps of confirmed cancellations in last 30d (select: false) (H10)
   profileComplete: Boolean, // Computed server-side on save
   createdAt: Date,
   updatedAt: Date
@@ -153,15 +156,19 @@ Open work postings posted by customers for nearby workers.
   customerId: ObjectId,
   workerId: ObjectId,
   skill: String,
+  localityKey: String,
   agreedRate: Number,
   scheduledAt: Date,
   hours: Number,            // 1 to 12
+  note: String,             // max 200 chars, contact blocked
   status: String,           // 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
+  source: String,           // 'job' | 'direct' | 'freenow'
   startCodeEnc: String,     // AES-256-GCM encrypted "v1:iv:tag:cipher", select: false
   finishCodeEnc: String,    // AES-256-GCM encrypted "v1:iv:tag:cipher", select: false
-  startCodeAttempts: Number,
-  finishCodeAttempts: Number,
-  codeLockUntil: Date,
+  startCodeAttempts: Number,// default 0
+  startCodeLockUntil: Date, // select: false
+  finishCodeAttempts: Number,// default 0
+  finishCodeLockUntil: Date,// select: false
   startedAt: Date,
   startedGeo: {
     type: "Point",
@@ -169,18 +176,21 @@ Open work postings posted by customers for nearby workers.
   },
   farFromJob: Boolean,      // null if coords not provided; true if > 500m; false if <= 500m
   finishedAt: Date,
-  hoursWorked: Number,
-  paidCash: Boolean,
-  rating: Number,           // 1 to 5
+  hoursWorked: Number,      // minutes / 60 rounded to 2 decimals
+  paidCash: Boolean,        // must be true to finish
+  rating: Number,           // integer 1 to 5
   comment: String,          // max 200 chars, contact blocked
-  source: String,           // 'job' | 'direct' | 'freenow'
-  locationSnapshot: {
+  locationSnapshot: {       // Copy of location: job point or customer private point/centroid (H5)
     type: "Point",
     coordinates: [Number]
   },
-  cancelledBy: ObjectId,
+  localityName: String,
+  cancelledBy: String,      // 'customer' | 'worker'
   cancelReason: String,
   flags: [String],
+  shortJob: Boolean,        // hoursWorked < 0.25 (internal quality flag, select: false)
+  repeatedPair: Boolean,    // >=3 completed bookings between pair in 30d (select: false)
+  bookingGuard: Number,     // incremented on create for race safety (select: false)
   createdAt: Date,
   updatedAt: Date
 }
@@ -199,26 +209,28 @@ Append-only, cryptographically chained verified work records.
 {
   _id: ObjectId,
   workerId: ObjectId,
-  bookingId: ObjectId,
+  recordId: String,         // Crockford base32 8-char random unique identifier (H3)
+  bookingId: ObjectId,      // unique 1:1 binding to booking
   seq: Number,              // 1-indexed strictly increasing integer
   skill: String,
-  date: Date,
-  hours: Number,
-  rating: Number,
-  comment: String,
-  employerName: String,     // Real legal name (private, covered by cryptographic hash)
+  date: Date,               // UTC midnight of booking startedAt
+  hours: Number,            // hoursWorked
+  rating: Number,           // integer 1 to 5
+  comment: String,          // customer's review comment
+  employerName: String,     // Real customer name (private, covered by cryptographic hash)
   employerDisplay: {
     name: String,
     masked: String          // e.g. "R*** K." (derived at read time)
   },
-  maskEmployerName: Boolean,// default true
-  visible: Boolean,         // worker visibility toggle, default true (not in hash)
+  maskEmployerName: Boolean,// default true (mutable by worker)
+  visible: Boolean,         // default true (mutable by worker, not in hash)
   prevHash: String,         // SHA-256 hex string of previous entry (or 64 zeros)
-  hash: String,             // SHA-256 hex string of canonical array
+  hash: String,             // SHA-256 hex string of canonical array per docs F4
   createdAt: Date
 }
 ```
 **Indexes:**
+- `{ recordId: 1 }` (unique)
 - `{ bookingId: 1 }` (unique)
 - `{ workerId: 1, seq: 1 }` (unique)
 - `{ workerId: 1, visible: 1, seq: -1 }`

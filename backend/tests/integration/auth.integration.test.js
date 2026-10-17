@@ -609,7 +609,23 @@ describe('backend/tests/integration/auth.integration.test.js (MongoDB In-Memory 
       { method: 'GET', path: '/api/v1/jobs/mine', expected: { visitor: 401, customer: 200, worker: 403 } },
       { method: 'POST', path: '/api/v1/jobs', body: { skill: 'electrician' }, expected: { visitor: 401, customer: 403, worker: 403 } }, // customer gets 403 PROFILE_INCOMPLETE
       { method: 'POST', path: '/api/v1/jobs/000000000000000000000000/accept', expected: { visitor: 401, customer: 403, worker: 403 } }, // worker gets 403 PROFILE_INCOMPLETE
-      { method: 'POST', path: '/api/v1/jobs/000000000000000000000000/cancel', expected: { visitor: 401, customer: 404, worker: 403 } }
+      { method: 'POST', path: '/api/v1/jobs/000000000000000000000000/cancel', expected: { visitor: 401, customer: 404, worker: 403 } },
+      // B5 Routes
+      { method: 'POST', path: '/api/v1/bookings', body: { workerId: '000000000000000000000000' }, expected: { visitor: 401, customer: 400, worker: 403 } }, // customer gets 400 KEY_REQUIRED (or 403 if profile checked first)
+      { method: 'GET', path: '/api/v1/bookings', expected: { visitor: 401, customer: 400, worker: 400 } },
+      { method: 'GET', path: '/api/v1/bookings/counts', expected: { visitor: 401, customer: 200, worker: 200 } },
+      { method: 'GET', path: '/api/v1/bookings/000000000000000000000000', expected: { visitor: 401, customer: 404, worker: 404 } },
+      { method: 'GET', path: '/api/v1/bookings/000000000000000000000000/codes', expected: { visitor: 401, customer: 404, worker: 404 } },
+      { method: 'POST', path: '/api/v1/bookings/000000000000000000000000/confirm', expected: { visitor: 401, customer: 403, worker: 404 } },
+      { method: 'POST', path: '/api/v1/bookings/000000000000000000000000/cancel', expected: { visitor: 401, customer: 404, worker: 404 } },
+      { method: 'POST', path: '/api/v1/bookings/000000000000000000000000/start', expected: { visitor: 401, customer: 403, worker: 404 } },
+      { method: 'POST', path: '/api/v1/bookings/000000000000000000000000/finish', expected: { visitor: 401, customer: 404, worker: 403 } },
+      { method: 'GET', path: '/api/v1/bookings/000000000000000000000000/receipt', expected: { visitor: 401, customer: 404, worker: 404 } },
+      { method: 'POST', path: '/api/v1/bookings/000000000000000000000000/report', expected: { visitor: 401, customer: 403, worker: 404 } },
+      { method: 'GET', path: '/api/v1/workers/000000000000000000000000/passport', expected: { visitor: 401, customer: 404, worker: 404 } },
+      { method: 'GET', path: '/api/v1/workers/000000000000000000000000/passport/verify', expected: { visitor: 401, customer: 404, worker: 404 } },
+      { method: 'GET', path: '/api/v1/passport/me', expected: { visitor: 401, customer: 403, worker: 200 } },
+      { method: 'PATCH', path: '/api/v1/passport/entries/00000000', body: { visible: true }, expected: { visitor: 401, customer: 403, worker: 404 } }
     ];
 
     for (const route of routes) {

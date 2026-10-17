@@ -174,3 +174,47 @@ export const LOCALITIES = [
    - URLs: `http://`, `https://`, `www.`, `wa.me/`, `t.me/`, `bit.ly/`, or `\b\w+\.(com|in|net|org|co|io|me)\b`.
    - Social Handles: Mentions of `whatsapp`, `telegram`, or `insta` followed within 20 characters by a 4+ digit number or `@handle`.
 5. **Exceptions Permitted:** Common operational phrases (e.g., `"2 workers for 4 hours"`, `"Rs 1,200"`, `"3 PM to 6 PM"`, `"12/10/2026"`, `"room 204"`) must not be blocked.
+
+---
+
+## 6. Handshake Attempt Counting & Lockout Security (Phase B5)
+
+### 6.1 Atomic Slot Reservation & Brute-Force Defense
+Both start and finish handshakes use separate attempt counters (`startCodeAttempts`, `finishCodeAttempts`) and separate lockouts (`startCodeLockUntil`, `finishCodeLockUntil`):
+1. **Atomic Attempt Reservation:**
+   - Each guess initiates an atomic conditional update (`findOneAndUpdate`) using an aggregation pipeline that checks `status` and `lockUntil <= now`.
+   - If the lock has expired, counters are reset to 1 atomically within the same operation (no window of vulnerability).
+   - If active and under the limit, the attempt counter is incremented.
+   - If 5 incorrect guesses are reached, `lockUntil` is set to `now + 10 minutes`.
+2. **Comparison Cap:**
+   - Exactly at most 5 attempts are ever compared per 10-minute window. Even if 50 parallel requests arrive, atomic slot reservation ensures only the first 5 are compared, and subsequent requests immediately return `429 CODE_LOCKED`.
+3. **Timing Neutrality:**
+   - Codes are compared using `crypto.timingSafeEqual` over fixed-length UTF-8 buffers to prevent timing side channels.
+
+---
+
+## 7. Multi-Document Transaction Architecture (Phase B5)
+
+### 7.1 Booking Creation Overlap Safety
+- Concurrent requests for the same worker slot run inside a MongoDB transaction (`tryTransaction`).
+- The transaction queries existing `pending`, `confirmed`, and `in_progress` bookings for schedule clashes.
+- To prevent serialization anomalies between read and insert, the transaction updates the target worker document (`$inc: { bookingGuard: 1 }`).
+- Concurrent transactions for the same worker serialize at the database level; one succeeds, and the other retries and fails cleanly with `409 TIME_CLASH`.
+
+### 7.2 Booking Finish & Passport Chain Linking
+- The finish operation runs inside an atomic transaction:
+  1. Conditionally updates booking from `in_progress` to `completed` with timestamps, hours worked, and quality flags.
+  2. Inserts exactly one `passportEntries` document with `seq = worker.passportHead.seq + 1` and `prevHash = worker.passportHead.hash`.
+  3. Updates the worker document with `passportStats` and conditionally sets `passportHead` matching the previous head sequence.
+- If two finishes occur concurrently for the same worker across different bookings, the conditional head check forces serialization; one commits, and the second retries seamlessly with the new head sequence, preventing chain forks or sequence gaps.
+- Post-commit, `recomputeRateStats` is invoked asynchronously outside the transaction; failures are logged without rolling back the completed handshake.
+
+---
+
+## 8. Geolocation Privacy Exception (H5)
+
+### 8.1 Single Documented Exception Rule
+- Standard API responses across the entire system are prohibited from returning latitude, longitude, or raw coordinates (strictly verified by automated privacy scanners).
+- **The Sole Exception:** `GET /bookings/:id` returns `jobLocation: { lat, lng, localityName }` strictly to the worker participant, and strictly while the booking status is `confirmed` or `in_progress`.
+- The customer never receives worker coordinates. In all other booking states (`pending`, `completed`, `cancelled`, `expired`, `missed`), `jobLocation` is omitted from the response.
+

@@ -34,10 +34,13 @@ export function formatSuccess(data = {}, message = '') {
   };
 }
 
-export function formatError(code, message, details = undefined) {
+export function formatError(code, message, details = undefined, extra = undefined) {
   const errPayload = { code, message };
   if (details !== undefined) {
     errPayload.details = details;
+  }
+  if (extra && typeof extra === 'object') {
+    Object.assign(errPayload, extra);
   }
   return {
     success: false,

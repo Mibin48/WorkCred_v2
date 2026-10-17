@@ -1,47 +1,53 @@
-# Session Summary: Phase B4 (Search, Fair Rate Compass, Jobs)
+# Session Summary: Phase B5 (Bookings, Handshake & Work Passport)
 
-**Date:** 2026-10-16  
-**Phase Completed:** Phase B4 (Search, Fair Rate Compass, Jobs - Backend Only)  
+**Date:** 2026-10-16 / 2026-10-17  
+**Phase Completed:** Phase B5 (Bookings, Handshake, Work Passport - Backend Only)  
 **Status:** Code Written & Ready for Verification (Tests written, NOT yet run)
 
 ---
 
-## 1. What Was Built in Phase B4
+## 1. What Was Built in Phase B5
 
-### A. Core Mathematical & Business Rules (`shared/`)
-1. **Compass Rate Unit Standardized (Decision G1, `shared/compassMath.js`):**
-   - Converted baseline sample rates table to **RUPEES PER HOUR** (`daily / 8`, rounded) with explicit `SAMPLE` label.
-   - Converted table: helper (75/94/113), electrician (100/125/163), plumber (100/125/156), mason (113/144/175), painter (94/119/150), carpenter (106/138/169), cook (88/113/144), cleaner (69/88/106), driver (100/125/150), vendor (75/100/125), other (81/106/138).
-   - `hourlyEquivalent(hourly, daily)`: returns `hourly` if set > 0, else `round(daily / 8)`.
-   - `fairLabel(rate, bounds)`: returns `low` if `< p25`, `high` if `> p75`, else `fair`.
-   - `pickSource(localityStats, cityStats, baseline)`: 3-tier fallback picking first with `sampleSize >= 5`, else baseline with sample disclaimer.
-2. **Job Rules & Scheduling Helpers (`shared/jobRules.js`):**
-   - `intervalsOverlap(aStart, aHours, bStart, bHours)`: touching intervals do NOT overlap.
-   - `hourBoundaries(startAt, hours)`: generates all hourly checkpoints for window availability check.
-   - `isWindowAvailable(calendar, startAt, hours)`: verifies weekday schedule and blocked dates for every hour boundary.
-   - `formatApproxDistance(meters)`: rounds to nearest 0.5 km with minimum `"under 1 km"`. Never returns coordinates.
-   - `validateJobInput(body, context)`: validates job fields, 15m to 30d time window (G4), 1-10 workers, 1-12 hours, 50-100000 ₹/hr, checks contact blocking in description, and rejects unknown fields.
-   - `encodeCursor(payload)` and `decodeCursor(cursorStr)`: URL-safe base64url cursor serialization with tamper-proofing.
+### A. Shared Pure Modules (`shared/`)
+1. **Booking Helpers & Verification (`shared/bookingHelpers.js`):**
+   - `maskEmployerName(name)`: pure function yielding `"R*** K."` (anonymized counterparty presentation).
+   - `generateRecordId()` / `isValidRecordId(id)`: random 8-character Crockford base32 identifier (`0-9, A-Z` excluding `I, L, O, U`) for public Passport references (Decision H3).
+   - `computeHoursWorked(start, finish)`: elapsed duration in hours rounded to 2 decimals (never negative).
+   - `cashAmount(agreedRate, bookedHours)`: rate multiplied by booked hours (Decision H2).
+   - `displayStatus(booking, now)`: evaluates read-time status transitions (`expired`, `missed`) without modifying stored state (Decision H4).
+   - `bookingTabFor(role, booking, now)`: role-specific tab bucket mapping (`upcoming`, `active`, `done`, `cancelled`, `requests`).
+   - `isWithinEarlyStartWindow(scheduledAt, now)`: enforces arrival window (`now >= scheduledAt - 60min`).
+   - `attemptStateCalc(current, lockUntil, now)`: pure state machine calculating atomic slot reservation, lockout triggers, and expiration resets.
+   - `verifyChain(entries, head, stats)`: pure verification algorithm checking sequence continuity from 1, genesis zero-prevHash, cryptographic hash recomputation, head sequence/hash alignment, stats job count parity, and duplicate booking ID detection.
+2. **Unit Tests (`backend/tests/unit/shared/bookingHelpers.test.js`):**
+   - Comprehensive tests for all pure functions including all 12 tamper scenarios, fixed hash vector verification, early start boundaries, and haversine tolerance edges (499m, 500m, 501m).
 
 ### B. Endpoints Mounted under `/api/v1` (`backend/src`)
-1. **Idempotency Middleware (`backend/src/middleware/idempotency.js`):**
-   - Header `Idempotency-Key` (8-80 chars). Concurrent duplicate -> 409 `REQUEST_IN_PROGRESS`. Finished duplicate -> replay status/body with `Idempotent-Replay: true`. Reused key with different payload -> 422 `KEY_REUSED`. 5xx errors not stored. Applied to `POST /jobs`, `POST /jobs/:id/accept`, `POST /jobs/:id/cancel`.
-2. **Worker Search (`GET /api/v1/workers`):**
-   - `$geoNear` query on `searchLocation` (locality centroid, G2). Ties broken by `_id`. Batch Fair Rate hints. Excludes caller from own results. Excludes inactive/incomplete profiles. Returns approximate distances only. Rate limit: 120/10min.
-3. **Worker Viewer Profile (`GET /api/v1/workers/:id`):**
-   - Sanitized viewer profile: bio, stats, weekly calendar summary, count of blocked dates in next 14 days (not dates or reasons), empty endorsements object. 404 for missing/inactive/incomplete/invalid IDs. Rate limit: 120/10min.
-4. **Fair Rate Compass (`GET /api/v1/compass`):**
-   - 3-tier fallback (`locality` if >= 5, `city` if >= 5, else `baseline` with sample disclaimer). Service function `recomputeRateStats` queries completed bookings in past 90 days. Rate limit: 60/10min.
-5. **Jobs Endpoints (`/api/v1/jobs`):**
-   - `POST /jobs`: Customer only, 20/day limit, stores `searchLocation` = locality centroid, returns Fair Price hint without coordinates.
-   - `GET /jobs`: Worker only. Matching skills, open, future, within radius, not accepted.
-   - `GET /jobs/mine`: Customer only. Returns status (`open`, `filled`, `cancelled`, read-time `expired` G5), accepted workers list with display names (`"First L."`).
-   - `POST /jobs/:id/accept`: Worker only. Conflict check against calendar and active bookings. Atomic slot claim (G7) with conditional pipeline update. Immediate confirmed booking creation (G6) with AES-256-GCM encrypted codes (`codesCrypto`, AAD bound to pre-generated booking `_id`). Rollback on conflict.
-   - `POST /jobs/:id/cancel`: Customer owner only. Cancels job and confirmed bookings. Blocked with 409 `JOB_IN_PROGRESS` if work in progress. Repeated cancel is safe.
+1. **Bookings Routes (`/api/v1/bookings`):**
+   - `POST /bookings`: Customer direct booking. Idempotency-Key header REQUIRED (missing gives 400 `KEY_REQUIRED`). Overlap check executed inside multi-document transaction with worker `bookingGuard` increment to serialize parallel attempts (Decision H11). Rate limit: 20/hr.
+   - `GET /bookings`: Tabbed list for authenticated users with tamper-safe cursor pagination. List items omit all private contact and coordinate details.
+   - `GET /bookings/counts`: Summary tab counts for role.
+   - `GET /bookings/:id`: Detail view with dynamic contact release (Decision H5): counterparty phone and worker `jobLocation` released strictly during `confirmed` and `in_progress`.
+   - `GET /bookings/:id/codes`: Customer participant only. Returns decrypted start and finish codes with `Cache-Control: no-store` (Decision H1). Rate limit: 30/10min.
+   - `POST /bookings/:id/confirm`: Worker confirms pending booking. Double confirm and post-cancel confirm fail cleanly with 409 `INVALID_STATE`.
+   - `POST /bookings/:id/cancel`: Participant cancellation. Confirmed worker cancellation tracks 30-day frequency and triggers `warning: "REPEATED_CANCELLATIONS"` on 3rd incident (Decision H10).
+   - `POST /bookings/:id/start`: Worker enters 4-digit code. Atomic attempt reservation caps comparisons at 5 before 10-minute lock (`429 CODE_LOCKED`). Location checks report `FAR_FROM_JOB` warning if beyond 500m.
+   - `POST /bookings/:id/finish`: Customer enters finish code, confirms cash payment (`paidCash: true`), and submits 1-5 rating. Runs inside multi-document transaction: updates booking to `completed`, issues `passportEntries` document linked to worker chain, updates `passportHead` and `passportStats`, and asynchronously calls `recomputeRateStats`.
+   - `GET /bookings/:id/receipt`: View receipt stating "Cash payment reported by customer" with agreed rate, booked hours, and hours worked.
+   - `POST /bookings/:id/report`: Worker safety report during active job. Duplicate suppression within 24 hours. Rate limit: 10/hr.
+2. **Passport Routes (`/api/v1/passport` & `/api/v1/workers/:id/passport*`):**
+   - `GET /workers/:id/passport`: Public visible entries only with masked employer names and private included count.
+   - `GET /workers/:id/passport/verify`: Returns tamper-evident status `{ status: "valid" | "needs_attention", records: N }`.
+   - `GET /passport/me`: Worker's complete chronological timeline including hidden entries with full stats.
+   - `PATCH /passport/entries/:id`: Worker visibility and masking toggles (`visible`, `maskEmployer`). Any other field returns 400.
+   - Extended `GET /workers/:id` with `historyCheck` metadata.
 
-### C. Scripts and Tests
-- `scripts/backfill-search-fields.js`: Backfills `mainSkill`, `rateHourlyEffective`, and `searchLocation` on existing users.
-- `scripts/b4-check.js`: Comprehensive manual verification script against running server.
-- `backend/tests/unit/shared/jobRules.test.js` & `compassMath.test.js`: Unit tests.
-- `backend/tests/integration/b4.integration.test.js`: Integration tests for search ties, compass fallback, job posting, atomic claim (10 parallel accepts on 2 slots -> 2 OK, 8 JOB_FULL), idempotency replay, and cancel.
-- Updated `backend/tests/helpers/privacyScanner.js` and authorization matrix in `auth.integration.test.js`.
+### C. Testing and Verification Scripts
+1. `backend/tests/integration/b5.integration.test.js`:
+   - Full integration suite using `MongoMemoryReplSet` for real multi-document transactions.
+   - Validates booking creation limits, idempotency replay, 10 parallel booking race conditions (1 success, 9 TIME_CLASH), contact release visibility (H5), confirm/cancel lifecycle, start handshake lockout, parallel finish serialization, report duplicate suppression, and all 10 raw MongoDB tamper scenarios.
+2. `scripts/b5-check.js`:
+   - 15-step manual check script against a running server covering end-to-end booking, code revealing, attempt counting, lockout, finish transaction, receipt, passport verification, and entry hiding.
+3. `scripts/b5-tamper-check.js`:
+   - Direct MongoDB tamper check verifying `valid -> needs_attention -> valid` on a throwaway worker record.
+4. Extended privacy scanner helper (`backend/tests/helpers/privacyScanner.js`) and authorization matrix in `auth.integration.test.js`.
