@@ -304,5 +304,32 @@ Both start and finish handshakes use separate attempt counters (`startCodeAttemp
 2. **Duplicate Suppression:** Submitting identical reports (`reporterId`, `targetType`, `targetId`, `reason`) within a 24-hour window returns the same success response (`"Report received. Support will review it."`) without creating a duplicate record or altering review status.
 3. **Privacy Enforcement:** Responses never echo target details, notes, or identify who reported whom. Automated privacy scanners assert that `ipHash`, `reporterId`, and `reportedUserId` are forbidden from all client responses.
 
+---
 
+## 11. Seed Data & Demo Accounts Security Architecture (Phase S1)
 
+### 11.1 Non-Destructive Reset Guard (L5)
+1. **Safety Assertions:** Seed and reset operations verify that:
+   - `NODE_ENV !== 'production'`.
+   - The MongoDB database name does NOT contain the substrings `'prod'` or `'live'`.
+   - `DEMO_PASSWORD` is present in the environment and is at least 12 characters long.
+   - Operations require the explicit `--yes` flag to run.
+2. **Selective Removal:** `removeSampleData()` exclusively targets records where `isSample: true` or records owned by sample users (`userId in sampleUserIds`). It **never drops collections** and **never modifies or deletes real non-sample records**.
+
+### 11.2 Demo Password & Production Startup Abort (L6)
+1. **Shared Development Password:** Seeded sample accounts share a development password configured via `DEMO_PASSWORD`.
+2. **Hard Production Interlock:** The backend startup script in `src/config/env.js` validates that if `NODE_ENV === 'production'` and `DEMO_PASSWORD` is set, the process terminates immediately with exit code 1 to eliminate developer oversight risks in production.
+
+### 11.3 Demo Banner Endpoint Security (L6)
+1. **Endpoint `GET /api/v1/demo/accounts`:**
+   - Returns HTTP 404 in non-development environments (`NODE_ENV !== 'development'`).
+   - Returns HTTP 404 if `DEMO_PASSWORD` is not configured.
+   - Returns HTTP 404 if no sample accounts exist in the database.
+   - Strict `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate`.
+   - Rate limited to 30 requests per 10 minutes per IP.
+
+### 11.4 Synthetic Contact Safety & Content Boundaries (L8, L9)
+1. **Reserved Email Domain:** All sample accounts strictly use the RFC 2606 reserved `.example.com` domain.
+2. **Unallocated Phone Number Range:** All sample accounts strictly use numbers formatted as `9000000xxx` (e.g., `9000000101`). These numbers are purely fictional and must never be dialed.
+3. **Contact Filter Compliance:** All sample captions, bios, and comments strictly pass `containsContactInfo` checks to prevent leaking real phone numbers, emails, URLs, or UPI addresses.
+4. **Transparent Sample Flagging:** All API endpoints return `isSample: true` for seeded entities so clients can render explicit visual indicators ("Sample") to prevent real customers from misinterpreting sample availability or pricing.

@@ -53,6 +53,10 @@ const bookingSchema = new mongoose.Schema(
       enum: ['job', 'direct', 'freenow'],
       default: 'direct'
     },
+    isSample: {
+      type: Boolean,
+      default: false
+    },
 
     // ── Encrypted codes (select:false – never returned by default) ──────────
     startCodeEnc: {

@@ -246,5 +246,47 @@ This document records key architectural, security, and product design decisions 
 - **Decision:** Feed, follow, endorsement, and report events do NOT emit any Socket.io events. Clients refetch the feed via REST after creating or deleting posts.
 - **Rationale:** Prevents high-frequency socket noise, maintains the "events are hints" architecture, and leaves socket bandwidth focused on high-priority live booking and safety handshakes.
 
+### 50. Sample Identification via Boolean Flag (Phase S1 - L1)
+- **Date:** 2026-10-17
+- **Decision:** Sample data is identified via a first-class boolean `isSample: true` on primary entities (`User`, `Job`, `Booking`, `Post`). Dependent documents (`PassportEntry`, `Availability`, `Follow`, `Endorsement`, `Report`) inherit sample status implicitly via their association with sample users. The flag is stored directly in database documents with a default of `false` so production data is safe by default.
+- **Rationale:** Simple, explicit, performant, and avoids fragile convention-based heuristics (like matching email prefixes) across disparate services.
 
+### 51. Real Services and Realistic Chaining for Sample Creation (Phase S1 - L2)
+- **Date:** 2026-10-17
+- **Decision:** Seed scripts exercise real services (`bookingService`, `passportService`, `freeNowService`, `postService`, `endorsementService`, etc.) rather than inserting raw handcrafted documents. Historical events (bookings, window lifecycles, and cryptographic Passport hash chains) are driven through an injectable clock (`withClock`) to guarantee that all security constraints, counter updates, and tamper-proof hashes (`passportHead`, `prevHash`) match production runtime logic.
+- **Rationale:** Prevents test/dev skew, validates real application pathways end-to-end, and guarantees valid SHA-256 Passport chains.
 
+### 52. Realistic Historical Spread and Multi-Tier Compass Distribution (Phase S1 - L3)
+- **Date:** 2026-10-17
+- **Decision:** Sample completed bookings are planned with deterministic realistic temporal and spatial distribution across Kochi localities (Kakkanad, Edappally, Kaloor, Vyttila, Aluva, Palarivattom, Thevara, Tripunithura, Fort Kochi) over the last 90 days. Rate distributions are engineered to cover all three Fair Rate Compass resolution tiers: Locality (>= 5 bookings), City (>= 5 across city), and Baseline fallback.
+- **Rationale:** Allows complete frontend rendering of all Compass and Passport scenarios without requiring real historical transaction volume.
+
+### 53. Deterministic Pseudo-Random Generation and Relative Offsets (Phase S1 - L4)
+- **Date:** 2026-10-17
+- **Decision:** The seed process uses a seeded deterministic pseudo-random number generator (Mulberry32) and relative time offsets calculated from execution time (`runNow`).
+- **Rationale:** Ensures that running the seed tomorrow produces the same rich set of states (e.g. tomorrow's booking is always scheduled tomorrow) while remaining 100% reproducible across test runs.
+
+### 54. Strict Safety Guards and Non-Destructive Reset (Phase S1 - L5)
+- **Date:** 2026-10-17
+- **Decision:** Seed and reset operations are strictly forbidden in production (`NODE_ENV === 'production'`), on any database whose name includes 'prod' or 'live', and when `DEMO_PASSWORD` is absent. Reset (`demo:reset` / `seed:remove`) purges exclusively sample documents (`isSample: true` and sample user ownership) without dropping collections or altering non-sample records.
+- **Rationale:** Zero data loss guarantee for genuine users during local testing or demo environments.
+
+### 55. Shared Dev-Only Demo Password and Startup Production Guard (Phase S1 - L6)
+- **Date:** 2026-10-17
+- **Decision:** All sample accounts share a single development-only password configured via `DEMO_PASSWORD` (minimum 12 characters). Passwords are hashed using the real scrypt algorithm. If `NODE_ENV === 'production'` and `DEMO_PASSWORD` is defined, the server immediately aborts startup with a fatal error.
+- **Rationale:** Maximizes developer and reviewer ergonomics during manual QA while eliminating backdoor authentication risks in production deployments.
+
+### 56. Solid-Color Sample Placeholder Assets (Phase S1 - L7)
+- **Date:** 2026-10-17
+- **Decision:** Sample work photos use 6 lightweight solid-colour PNGs stored under `frontend/assets/sample/work-1.png ... work-6.png`, generated procedurally using Node's native `zlib` deflate compression without external image processing libraries.
+- **Rationale:** Zero external dependencies, deterministic visual distinction across sample cards, and rapid offline bootstrapping.
+
+### 57. Ethical Persona Design and Synthetic Contact Safety (Phase S1 - L8)
+- **Date:** 2026-10-17
+- **Decision:** All sample accounts use fictional names, reserved `example.com` email addresses, and fictional phone numbers in the `9000000xxx` range. Notes, bios, and captions strictly avoid real contact details and pass `containsContactInfo` checks.
+- **Rationale:** Prevents accidental spam or contact with real individuals and upholds platform privacy and ethical standards.
+
+### 58. Explicit Labeling and Honest Sample Indication (Phase S1 - L9)
+- **Date:** 2026-10-17
+- **Decision:** All API responses expose `isSample: true` whenever the entity represents seeded sample data. Compass baseline rates and sample-derived statistics return `isSample: true` and `note: "Based on sample rates for now"`.
+- **Rationale:** Complete transparency for users, reviewers, and automated privacy scanning; prevents misleading economic signals from fictional rate baselines.

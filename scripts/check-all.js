@@ -21,7 +21,8 @@ const SCRIPTS = [
   { name: 'b4-check', file: 'scripts/b4-check.js' },
   { name: 'b5-check', file: 'scripts/b5-check.js' },
   { name: 'b6-check', file: 'scripts/b6-check.js' },
-  { name: 'b7-check', file: 'scripts/b7-check.js' }
+  { name: 'b7-check', file: 'scripts/b7-check.js' },
+  { name: 's1-check', file: 'scripts/s1-check.js' }
 ];
 
 async function runScript(script) {

@@ -30,6 +30,7 @@ Customers and workers registered on the platform.
   },
   localityKey: String,
   isActive: Boolean,        // default true
+  isSample: Boolean,        // default false (true for seeded sample accounts)
   // Worker-specific attributes:
   skills: [String],         // 1 to 6 skills (from 11 recognized options)
   mainSkill: String,        // exactly one isMain (derived on save)
@@ -146,6 +147,7 @@ Open work postings posted by customers for nearby workers.
   },
   localityKey: String,
   status: String,           // 'open' | 'filled' | 'cancelled' | 'expired'
+  isSample: Boolean,        // default false (true for seeded sample jobs)
   createdAt: Date,
   updatedAt: Date
 }
@@ -174,6 +176,7 @@ Open work postings posted by customers for nearby workers.
   note: String,             // max 200 chars, contact blocked
   status: String,           // 'pending' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled'
   source: String,           // 'job' | 'direct' | 'freenow'
+  isSample: Boolean,        // default false (true for seeded sample bookings)
   startCodeEnc: String,     // AES-256-GCM encrypted "v1:iv:tag:cipher", select: false
   finishCodeEnc: String,    // AES-256-GCM encrypted "v1:iv:tag:cipher", select: false
   startCodeAttempts: Number,// default 0
@@ -315,6 +318,7 @@ Work showcase feed items with photos and optional job linkage.
   beforeUrl: String,        // optional Cloudinary URL in worker's posts folder
   bookingId: ObjectId,      // optional link to completed verified job (sparse)
   verifiedJob: Boolean,     // true if backed by caller's completed booking
+  isSample: Boolean,        // default false (true for seeded sample posts)
   localityKey: String,
   location: {               // Author's searchLocation (locality centroid)
     type: "Point",

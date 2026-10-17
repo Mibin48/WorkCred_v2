@@ -115,6 +115,14 @@ export function validateEnv(envSource = process.env) {
     invalid.push(`Cloudinary configuration incomplete. Missing: ${missingCloudinary.join(', ')}`);
   }
 
+  // DEMO_PASSWORD: development only, at least 12 chars if set, fails startup in production
+  const demoPassword = envSource.DEMO_PASSWORD ? String(envSource.DEMO_PASSWORD).trim() : '';
+  if (nodeEnv === 'production' && demoPassword) {
+    invalid.push('DEMO_PASSWORD (DEMO_PASSWORD must never be set in production)');
+  } else if (demoPassword && demoPassword.length < 12) {
+    invalid.push('DEMO_PASSWORD (must be at least 12 characters)');
+  }
+
   if (invalid.length > 0) {
     throw new Error(`Environment validation failed. Invalid variables: ${invalid.join(', ')}`);
   }
@@ -132,6 +140,7 @@ export function validateEnv(envSource = process.env) {
     RATE_LIMIT_ENABLED: rateLimitEnabled,
     CLOUDINARY_CLOUD_NAME: cName || null,
     CLOUDINARY_API_KEY: cKey || null,
-    CLOUDINARY_API_SECRET: cSecret || null
+    CLOUDINARY_API_SECRET: cSecret || null,
+    DEMO_PASSWORD: demoPassword || null
   };
 }

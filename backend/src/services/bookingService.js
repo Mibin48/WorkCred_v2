@@ -409,6 +409,7 @@ export async function createDirectBooking(body, caller, config, clock) {
       note,
       status: 'pending',
       source: isFromFreeNow ? 'freenow' : 'direct',
+      isSample: Boolean(caller.isSample || worker.isSample),
       startCodeEnc,
       finishCodeEnc,
       locationSnapshot
@@ -1495,6 +1496,7 @@ export async function finishBooking(bookingId, body, caller, config, clock) {
         paymentNote: 'Cash payment reported by customer',
         rating,
         comment,
+        isSample: Boolean(booking.isSample),
         otherPartyDisplay: displayName(workerDoc.name)
       };
     });
@@ -1565,6 +1567,7 @@ export async function getBookingReceipt(bookingId, caller, clock) {
     paymentNote: 'Cash payment reported by customer',
     rating: booking.rating,
     comment: booking.comment || '',
+    isSample: Boolean(booking.isSample),
     otherPartyDisplay: other ? displayName(other.name) : 'Unknown'
   };
 }

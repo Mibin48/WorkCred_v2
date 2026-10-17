@@ -63,6 +63,13 @@ All backend commands can be run from the `backend/` directory or at root using s
 - `npm run support:unlock`: Unlock a rate-limited or locked account via CLI.
 - `node scripts/backfill-search-fields.js`: Backfill derived worker search fields (`mainSkill`, `rateHourlyEffective`, `searchLocation`).
 
+### Seed & Demo Data (Phase S1)
+- `npm run seed -- --yes`: Run deterministic seed to populate sample workers, customers, bookings, jobs, and posts.
+- `npm run seed:verify`: Run full verification asserting all seed counts, SHA-256 Passport chains, and Compass tiers.
+- `npm run demo:reset -- --yes`: Non-destructive reset purging sample data and recreating fresh sample dataset.
+- `npm run demo:refresh-free -- --yes`: Re-open live Free Now availability windows without touching other data.
+- `npm run seed:remove -- --yes`: Safely remove all sample data without touching real user accounts or records.
+- `node scripts/s1-check.js`: Live check script validating seed APIs and states against running server.
 
 ---
 

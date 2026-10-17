@@ -230,3 +230,12 @@ Events are hints, never data. Payloads carry IDs and display basics only. Client
 5. **Never Put Token in URL:** Tokens must never appear in query parameters or URL paths.
 6. **Rooms Refresh:** Emit `rooms:refresh` immediately after updating area (`localityKey`), skills, or `radiusKm`.
 
+---
+
+## 15. Demo & Development (`/demo`)
+
+| Method | Endpoint | Description | Access | Status | Response Data | Error Codes | Notes |
+|---|---|---|---|---|---|---|---|
+| `GET` | `/demo/accounts` | Fetch sample accounts and shared demo password for dev login banner | Public | 200 | `{ notice: "Sample accounts for development only", password, accounts: [{ role, name, email, note }] }` | `NOT_FOUND`, `TOO_MANY_REQUESTS` | Available ONLY in `development` environment when `DEMO_PASSWORD` is configured and sample users exist in database. Returns 404 in production, test, or if no sample accounts exist. Rate limited to 30 requests per 10 minutes per IP. Served with `Cache-Control: no-store`. |
+
+

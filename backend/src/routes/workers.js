@@ -344,6 +344,7 @@ export function createWorkersRouter(config, authMiddleware) {
           hasVerifiedHistory: (w.passportStats?.jobs || 0) > 0,
           isFollowing: followSet.has(wid),
           isSaved: saveSet.has(wid),
+          isSample: Boolean(w.isSample),
           fairRate: {
             label,
             isSample: sourceRes ? sourceRes.isSample : true
@@ -466,6 +467,7 @@ export function createWorkersRouter(config, authMiddleware) {
           weekly: weeklySummary,
           blockedNext14DaysCount: blockedDatesCount
         },
+        isSample: Boolean(worker.isSample),
         endorsements: worker.endorsementCounts instanceof Map
           ? Object.fromEntries(worker.endorsementCounts)
           : (worker.endorsementCounts || {})

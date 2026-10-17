@@ -96,7 +96,8 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
         location: jobLocation,
         searchLocation,
         status: 'open',
-        acceptedCount: 0
+        acceptedCount: 0,
+        isSample: Boolean(user.isSample)
       });
 
       // Audit log (ids only)
@@ -129,6 +130,7 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
           localityKey: job.localityKey,
           localityName: locality.name,
           status: job.status,
+          isSample: Boolean(job.isSample),
           fairRate: fairRateHint
         }
       };
@@ -276,6 +278,7 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
           approxDistance: formatApproxDistance(j.distMeters),
           localityName: loc ? loc.name : j.localityKey,
           customerDisplay,
+          isSample: Boolean(j.isSample),
           fairRate: { label: fairLabel }
         };
       });
@@ -383,6 +386,7 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
           localityKey: j.localityKey,
           localityName: loc ? loc.name : j.localityKey,
           status: computedStatus,
+          isSample: Boolean(j.isSample),
           acceptedWorkers: bookingsByJob.get(j._id.toString()) || []
         };
       });
@@ -561,6 +565,7 @@ export function createJobsRouter(config, authMiddleware, idempotencyMiddleware) 
           status: 'confirmed',
           source: 'job',
           locationSnapshot: job.location,
+          isSample: Boolean(job.isSample || user.isSample),
           startCodeEnc,
           finishCodeEnc
         });

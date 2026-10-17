@@ -72,6 +72,10 @@ const jobSchema = new mongoose.Schema(
       type: String,
       enum: ['open', 'filled', 'cancelled', 'expired'],
       default: 'open'
+    },
+    isSample: {
+      type: Boolean,
+      default: false
     }
   },
   {

@@ -57,3 +57,52 @@
 - **Manual Verification Scripts:**
   - `scripts/b7-check.js`: Standalone manual verification script against running server.
   - `scripts/check-all.js`: Master script running all check scripts (`auth-check`, `profile-check`, `b4-check`, `b5-check`, `b6-check`, `b7-check`).
+
+---
+
+# Session Summary: Phase S1 (Seed Data & Demo Accounts)
+
+**Date:** 2026-10-17  
+**Phase Completed:** Phase S1 (Seed Data & Reset Suite - Backend Only)  
+**Status:** Code Written & Suite Prepared (Ready for test execution by product owner)
+
+## 1. What Was Built in Phase S1
+
+### A. Core Architecture & Safety Guards
+1. **`backend/src/seed/dataset.js`**:
+   - Deterministic PRNG (`createRng`, Mulberry32) and relative time offsets calculated from `runNow`.
+   - 12 Sample Workers (personas covering veteran electrician, helper, plumber, mason, cook with 100% private records, cleaner with 0 records, painter with blocked calendar).
+   - 8 Sample Customers (including primary `CUST_BUSY` Rahul Nambiar with bookings in all tabs, and `CUST_EMPTY` Deepa Kurian with 0 bookings).
+   - 26 Historical completed bookings planned across 9 Kochi localities to satisfy all 3 Fair Rate Compass fallback tiers (locality, city, baseline).
+   - `validateDatasetSanity()` enforcing RFC 2606 emails, `9000000xxx` fictional phones, contact blocking, and valid rates.
+2. **`backend/src/seed/placeholders.js`**:
+   - Generates 6 solid-colour PNGs (`#f3efe6`, `#eee8df`, `#e9e2d5`, `#f0a27f`, `#b8dac2`, `#f0deb4`) under `frontend/assets/sample/work-1.png ... work-6.png` using Node native `node:zlib` deflate (zero external dependencies).
+3. **`backend/src/seed/clockTravel.js`**:
+   - Pure `withClock(targetTime, fn)` freezing and unfreezing the injectable backend clock safely across asynchronous operations.
+4. **`backend/src/seed/runner.js`**:
+   - `assertSeedSafety(config)`: Rejects production environment, databases containing `'prod'` or `'live'`, and missing `DEMO_PASSWORD`.
+   - `hasSampleData()`: Idempotency check detecting existing sample data without duplicating.
+   - `removeSampleData(config)`: Non-destructive selective purge targeting solely sample documents (`isSample: true` and sample user ownership) without dropping collections. Real records remain untouched.
+   - `runSeed(config)`: End-to-end orchestration using real backend services (`createDirectBooking`, `startBooking`, `finishBooking`, `startFreeNowWindow`, `createPost`, `createEndorsement`, `createReport`, `recomputeRateStats`). Produces valid SHA-256 Passport chains.
+5. **`backend/src/routes/demo.js`**:
+   - `GET /api/v1/demo/accounts`: Returns account cards and shared password in development mode with `Cache-Control: no-store` and rate limiting (30 req / 10 min). Returns HTTP 404 in production, when `DEMO_PASSWORD` is absent, or when no sample accounts exist.
+
+### B. Verification & Scripting
+- **Integration Test:** `backend/tests/integration/s1.integration.test.js` covering full seed, idempotency, non-destructive reset, safety guards, demo authentication, in-progress booking finish, Compass tiers, demo accounts route, and privacy scanning.
+- **Unit Test:** `backend/tests/unit/seed/seed.test.js` validating PRNG, dataset sanity, safety assertions, and placeholder image generation.
+- **CLI Scripts:**
+  - `scripts/seed.js`: `npm run seed -- --yes`
+  - `scripts/seed-verify.js`: `npm run seed:verify`
+  - `scripts/demo-reset.js`: `npm run demo:reset -- --yes`
+  - `scripts/demo-refresh-free.js`: `npm run demo:refresh-free -- --yes`
+  - `scripts/seed-remove.js`: `npm run seed:remove -- --yes`
+  - `scripts/s1-check.js`: Live verification against running server.
+  - `scripts/check-all.js`: Updated to run `s1-check` following `b7-check`.
+
+### C. Documentation
+- Created `docs/SEED_DATA.md`.
+- Updated `docs/DECISIONS.md` (entries 50–58 for Decisions L1–L9).
+- Updated `docs/DATA_MODEL.md` (`isSample` on `User`, `Job`, `Booking`, `Post`).
+- Updated `docs/SECURITY_SPEC.md` (Section 11).
+- Updated `docs/API_CONTRACT.md` (Section 15 `GET /demo/accounts`).
+- Updated `docs/PROGRESS.md` & `README.md`.

@@ -321,6 +321,7 @@ export function createAvailabilityRouter(config, authMiddleware) {
             approxDistance: formatApproxDistance(item.calculatedDistance),
             localityName: locDoc ? locDoc.name : null,
             hasVerifiedHistory: (w.passportStats?.jobs || 0) > 0,
+            isSample: Boolean(w.isSample),
             fairRate: {
               label: fairRate.label || 'fair',
               isSample: Boolean(fairRate.isSample)

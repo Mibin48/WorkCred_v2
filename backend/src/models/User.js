@@ -79,6 +79,10 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
+    isSample: {
+      type: Boolean,
+      default: false
+    },
     // Worker specific fields
     skills: {
       type: [String],

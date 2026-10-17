@@ -343,7 +343,8 @@ async function getFeedHighlights(user, originCoords, now) {
         offeredRate: j.offeredRate,
         description: j.description,
         localityName: locDoc ? locDoc.name : null,
-        approxDistance: formatApproxDistance(j.distMeters)
+        approxDistance: formatApproxDistance(j.distMeters),
+        isSample: Boolean(j.isSample)
       };
     });
   } else {
@@ -411,6 +412,7 @@ async function getFeedHighlights(user, originCoords, now) {
         minutesLeft: minutesLeftVal,
         approxDistance: formatApproxDistance(item.calculatedDistance),
         localityName: locDoc ? locDoc.name : null,
+        isSample: Boolean(w.isSample),
         canBookNow: minutesLeftVal > 30
       };
     });

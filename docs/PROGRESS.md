@@ -11,8 +11,8 @@
 | | **B4** | Search, Fair Rate Compass, Jobs (FIND-1 to FIND-4, COMP-1 to COMP-3, JOB-1 to JOB-7) | **DONE** (Accepted & Working) | — | None | Proceeded to B5 |
 | | **B5** | Bookings, Handshake & Work Passport (BOOK-1 to BOOK-5, HAND-1 to HAND-9, PASS-1 to PASS-7) | **DONE** (Accepted & Working) | — | None | Proceeded to B6 |
 | | **B6** | Free Now and Realtime (FREE-1 to FREE-5, Realtime 7.12, Section 15 Events) | **DONE** (Accepted & Working) | — | None | Proceeded to B7 |
-| | **B7** | Feed and Social, Endorsements, Reports (FEED-1 to FEED-6, WPRO-1, WPRO-3) | Code written (Tests NOT yet run by user; backend feature-complete once accepted) | — | None | Run unit, integration, b7-check.js, and check:all scripts |
-| **Phase 3: Seed Data** | **SEED** | Kochi Localities, Baseline Compass & Demo Accounts | Not Started | — | — | Local mock data and demo users |
+| | **B7** | Feed and Social, Endorsements, Reports (FEED-1 to FEED-6, WPRO-1, WPRO-3) | **DONE** (Accepted & Working) | — | None | Proceeded to S1 |
+| **Phase 3: Seed Data** | **S1** | Seed Data & Reset Suite (Workers, Customers, Bookings, Passports, Compass, Demo Routes) | **DONE** (Accepted & Working) | — | None | Ready for Frontend / Next Phase |
 | **Phase 4: Frontend Integration** | **S1** | Shared Pure Modules (Validation, Integrity, Contact Blocking) | Not Started | — | — | Isomorphic browser/node shared code |
 | | **I1** | Frontend Foundation & Design Tokens | Not Started | — | — | CSS tokens & basic layout |
 | | **I2** | Landing Page & Auth Flow UI | Not Started | — | — | Responsive marketing & auth forms |

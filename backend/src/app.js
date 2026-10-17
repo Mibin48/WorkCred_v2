@@ -24,6 +24,7 @@ import { createFeedRouter } from './routes/feed.js';
 import { createFollowsRouter } from './routes/follows.js';
 import { createEndorsementsRouter } from './routes/endorsements.js';
 import { createReportsRouter } from './routes/reports.js';
+import { createDemoRouter } from './routes/demo.js';
 import { idempotency } from './middleware/idempotency.js';
 
 export function createApp(config = {}) {
@@ -128,6 +129,7 @@ export function createApp(config = {}) {
   const followsRouter = createFollowsRouter(config, authMiddleware);
   const endorsementsRouter = createEndorsementsRouter(config, authMiddleware);
   const reportsRouter = createReportsRouter(config, authMiddleware);
+  const demoRouter = createDemoRouter(config);
 
   apiRouter.use('/auth', authRouter);
   apiRouter.use('/users', usersRouter);
@@ -144,6 +146,7 @@ export function createApp(config = {}) {
   apiRouter.use('/follows', followsRouter);
   apiRouter.use('/endorsements', endorsementsRouter);
   apiRouter.use('/reports', reportsRouter);
+  apiRouter.use('/demo', demoRouter);
 
   app.use('/api/v1', apiRouter);
 

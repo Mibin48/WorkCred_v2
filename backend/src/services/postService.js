@@ -155,7 +155,8 @@ export async function createPost({ body, user, config }) {
       location: {
         type: 'Point',
         coordinates: locationCoordinates
-      }
+      },
+      isSample: Boolean(user.isSample)
     });
 
     logAuditEvent('post_created', {
@@ -247,6 +248,7 @@ export function formatPostResponse(post, worker, viewerContext = {}) {
     afterUrl: post.afterUrl,
     beforeUrl: post.beforeUrl || null,
     verifiedJob: Boolean(post.verifiedJob),
+    isSample: Boolean(post.isSample),
     createdAt: post.createdAt,
     localityName: locDoc ? locDoc.name : null,
     viewer: {

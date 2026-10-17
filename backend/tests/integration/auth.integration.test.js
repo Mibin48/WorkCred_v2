@@ -641,7 +641,9 @@ describe('backend/tests/integration/auth.integration.test.js (MongoDB In-Memory 
       { method: 'DELETE', path: '/api/v1/follows/000000000000000000000000?type=follow', expected: { visitor: 401, customer: 200, worker: 200 } },
       { method: 'GET', path: '/api/v1/follows?type=follow', expected: { visitor: 401, customer: 200, worker: 200 } },
       { method: 'POST', path: '/api/v1/endorsements', body: { workerId: '000000000000000000000000', skill: 'electrician' }, expected: { visitor: 401, customer: 404, worker: 403 } },
-      { method: 'POST', path: '/api/v1/reports', body: { targetType: 'worker', targetId: '000000000000000000000000', reason: 'spam' }, expected: { visitor: 401, customer: 404, worker: 404 } }
+      { method: 'POST', path: '/api/v1/reports', body: { targetType: 'worker', targetId: '000000000000000000000000', reason: 'spam' }, expected: { visitor: 401, customer: 404, worker: 404 } },
+      // S1 Demo Accounts (404 when no sample data exists)
+      { method: 'GET', path: '/api/v1/demo/accounts', expected: { visitor: 404, customer: 404, worker: 404 } }
     ];
 
     for (const route of routes) {

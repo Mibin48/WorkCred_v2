@@ -15,6 +15,7 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
   let allowJobLocation = false;
   let allowEmployerName = false;
   let isPassportResponse = false;
+  let allowDemoPassword = false;
 
   if (Array.isArray(optionsOrForbidden)) {
     forbiddenKeys = optionsOrForbidden;
@@ -24,10 +25,10 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
     allowJobLocation = Boolean(optionsOrForbidden.allowJobLocation);
     allowEmployerName = Boolean(optionsOrForbidden.allowEmployerName);
     isPassportResponse = Boolean(optionsOrForbidden.isPassportResponse);
+    allowDemoPassword = Boolean(optionsOrForbidden.allowDemoPassword);
 
     forbiddenKeys = [
       'passwordHash',
-      'password',
       'token',
       'tokenVersion',
       'lockUntil',
@@ -51,6 +52,10 @@ export function assertNoSensitiveFields(target, optionsOrForbidden = {}) {
       'reportedUserId',
       'reporterId'
     ];
+
+    if (!allowDemoPassword) {
+      forbiddenKeys.push('password');
+    }
 
     if (!allowJobLocation) {
       forbiddenKeys.push(

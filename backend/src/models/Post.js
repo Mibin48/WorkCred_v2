@@ -33,6 +33,10 @@ const postSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     },
+    isSample: {
+      type: Boolean,
+      default: false
+    },
     localityKey: {
       type: String,
       required: true
