@@ -290,3 +290,68 @@ This document records key architectural, security, and product design decisions 
 - **Date:** 2026-10-17
 - **Decision:** All API responses expose `isSample: true` whenever the entity represents seeded sample data. Compass baseline rates and sample-derived statistics return `isSample: true` and `note: "Based on sample rates for now"`.
 - **Rationale:** Complete transparency for users, reviewers, and automated privacy scanning; prevents misleading economic signals from fictional rate baselines.
+
+---
+
+## 2026-10-17 (Phase I1: Shell, Landing, Auth, Onboarding)
+
+### 59. Stack: HTML, Vanilla CSS & ES Modules with Zero Build Step (Phase I1 - M1)
+- **Date:** 2026-10-17
+- **Decision:** The frontend is constructed using standard HTML5, Vanilla CSS custom properties, and native ECMAScript Modules (ESM) with zero compilation or bundler overhead. Two Express servers run locally: frontend on port 3000 and backend on port 4000.
+- **Rationale:** Eliminates toolchain churn, preserves pristine source maps, ensures fast development cycles, and guarantees long-term maintainability.
+
+### 60. Safe DOM Helper and Dynamic HTML Prohibition (Phase I1 - M2)
+- **Date:** 2026-10-17
+- **Decision:** Dynamic UI elements are created strictly via DOM helper `h(tag, props, ...children)` utilizing `document.createElement`, `textContent`, and an explicit allow-list of attributes. URLs in `href` and `src` are sanitized to reject dangerous protocols like `javascript:`. The tokens `innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, and `new Function` are completely banned from frontend code and enforced via automated linting (`scripts/lint-tokens.js`).
+- **Rationale:** Eliminates DOM-based cross-site scripting (XSS) by architectural design.
+
+### 61. Zero Inline Scripts and Strict Style Attribute Ban (Phase I1 - M3)
+- **Date:** 2026-10-17
+- **Decision:** Under a strict Content Security Policy (CSP), inline `<script>` tags, inline `<style>` tags, inline `style="..."` attributes, and `element.style.setProperty` calls are strictly prohibited. Dynamic styling and component states are driven purely through CSS classes and `data-*` attributes with CSS attribute selectors.
+- **Rationale:** Hardens the application against code and style injection attacks while maintaining separation between presentation rules and application state.
+
+### 62. In-Memory Only Access Token Storage (Phase I1 - M4)
+- **Date:** 2026-10-17
+- **Decision:** Short-lived JWT access tokens are held exclusively in a module-scoped in-memory variable (`inMemoryAccessToken`) and never persisted to `localStorage`, `sessionStorage`, `IndexedDB`, or client-accessible cookies. Non-sensitive preferences (e.g. dev banner dismissal) may use `sessionStorage`. Onboarding drafts are kept in memory and saved to the server after each step.
+- **Rationale:** Precludes token exfiltration via client-side storage scraping or cross-site scripting.
+
+### 63. Multi-Tab Synchronized Token Refresh and Locking (Phase I1 - M5)
+- **Date:** 2026-10-17
+- **Decision:** Token refresh operations are deduplicated into a single in-flight promise within a tab and synchronized across browser tabs using `navigator.locks.request("workcred-refresh")` (falling back to a non-sensitive localStorage lease key `{ name, owner, expiry }` if locks API is unavailable). A proactive timer triggers refresh at ~13 minutes (2 minutes before 15m expiration) or on tab focus. API requests encountering `TOKEN_INVALID` trigger exactly one refresh and one retry. `SESSION_INVALID` triggers local logout. A `BroadcastChannel("workcred-auth")` synchronizes logout and password-change events across tabs without passing tokens.
+- **Rationale:** Prevents race conditions where parallel tabs send rotating refresh tokens simultaneously, which would trigger token theft family revocation.
+
+### 64. Strict Hostname Isolation and Mismatch Error (Phase I1 - M6)
+- **Date:** 2026-10-17
+- **Decision:** Mixing `localhost` and `127.0.0.1` within the same session is strictly prohibited. `/config.js` is generated dynamically from the request's validated `Host` header against `ALLOWED_HOSTS`. If the page origin host and API origin host differ, the app presents a plain error screen instructing the user to access WorkCred via a single web address.
+- **Rationale:** Prevents cookie isolation partitioning, session desynchronization, and CORS credential mismatches.
+
+### 65. Explicit Allow-List for Served Shared Modules (Phase I1 - M7)
+- **Date:** 2026-10-17
+- **Decision:** The frontend Express server serves an explicit allow-list from `/shared` (`validators.js`, `passwordRules.js`, `containsContactInfo.js`, `profileValidators.js`, `profileRules.js`). It strictly denies access (HTTP 404) to sensitive modules (`localities.js`, `codesCrypto.js`, `passportHash.js`, etc.) and ensures served files contain zero `node:` module imports.
+- **Rationale:** Prevents leaking private geographic coordinates, cryptographic keys, or server-only dependencies to client browsers.
+
+### 66. Design Tokens as Single Visual Source of Truth (Phase I1 - M8)
+- **Date:** 2026-10-17
+- **Decision:** `frontend/css/tokens.css` is the sole authoritative source for colors, typography scales, 8px rhythm spacing, radii, shadows, layers, and motion timings. Fonts (`Newsreader` and `Plus Jakarta Sans`) are self-hosted via local WOFF2 files without runtime CDN calls. All CSS rules must reference tokens via `var(--...)`.
+- **Rationale:** Ensures complete visual consistency, WCAG AA contrast compliance, zero design drift, and fast offline-first rendering.
+
+### 67. Authentic Hero Composition with Drawn Passport Artifact (Phase I1 - M9)
+- **Date:** 2026-10-17
+- **Decision:** The landing page avoids generic stock photos or marketing embellishments. The hero features an authentic typographic composition, an inline SVG pencil-underline, and an interactive sample Work Passport card rendered in HTML and CSS with an explicit "Sample" badge. All rates, counts, and names are marked as Sample.
+- **Rationale:** Upholds core product honesty principles and eliminates licensing liabilities.
+
+### 68. Finalized Role Navigation Structures (Phase I1 - M10)
+- **Date:** 2026-10-17
+- **Decision:** Navigation labels are finalized: Customer (`Find`, `Free now`, `Post job`, `Bookings`, `Saved`), Worker (`Home`, `My work`, `Passport`, `Post`, `Me`). Customers access account settings via a header initials button; workers access account settings via the `Me` tab. Alerts, bell icons, and inbox centers are completely omitted.
+- **Rationale:** Strict adherence to PRD v3.2 / Design System v2.2 navigation architecture.
+
+### 69. Honest Placeholders for Secondary Destinations (Phase I1 - M11)
+- **Date:** 2026-10-17
+- **Decision:** In Phase I1, only auth pages, onboarding, account settings, and minimal role home/find pages are interactive. All other navigation destinations route to a single honest `PlaceholderPage` ("This screen is built in a later step.") to enable testing of tab selection, active states, and focus management.
+- **Rationale:** Clean separation of concerns and clear development boundaries across implementation phases.
+
+### 70. Development Account Quick-Fill Banner (Phase I1 - M12)
+- **Date:** 2026-10-17
+- **Decision:** On login and signup pages, the UI requests `GET /demo/accounts`. If available on localhost/127.0.0.1, a collapsible `<details>` panel displays sample accounts with "Fill in" buttons for testing. The panel is strictly suppressed in production or when sample accounts are absent.
+- **Rationale:** Drastically accelerates manual testing and reviewer validation without introducing production security backdoors.
+

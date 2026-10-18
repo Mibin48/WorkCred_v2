@@ -1,0 +1,352 @@
+/* WorkCred Landing Page Styles */
+/* Lives at: frontend/css/landing.css */
+
+.landing-body {
+  background-color: var(--paper);
+  color: var(--charcoal);
+  min-height: 100vh;
+}
+
+.landing-header {
+  border-bottom: 1px solid var(--border);
+  background-color: var(--paper);
+  position: sticky;
+  top: 0;
+  z-index: var(--z-header);
+}
+
+.landing-nav-container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.landing-nav-links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.landing-nav-link {
+  font-family: var(--font-sans);
+  font-size: var(--text-label);
+  font-weight: var(--weight-medium);
+  color: var(--charcoal);
+  text-decoration: none;
+}
+
+.landing-nav-link:hover {
+  color: var(--clay-dark);
+  text-decoration: underline;
+}
+
+/* Hero Section */
+.landing-hero-section {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: var(--space-7);
+  align-items: center;
+}
+
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.hero-headline {
+  font-family: var(--font-serif);
+  font-size: var(--text-display-lg);
+  line-height: var(--leading-tight);
+  color: var(--charcoal);
+}
+
+.hero-underline-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.hero-underline-svg {
+  position: absolute;
+  bottom: -6px;
+  left: 0;
+  width: 100%;
+  height: 8px;
+  color: var(--clay);
+  pointer-events: none;
+}
+
+.hero-subtext {
+  font-size: var(--text-body-lead);
+  color: var(--stone-dark);
+  max-width: 480px;
+}
+
+.hero-actions {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.hero-artifact {
+  display: flex;
+  justify-content: center;
+}
+
+/* Problem Section */
+.landing-problem-section {
+  background-color: var(--linen);
+  padding: var(--space-7) var(--space-4);
+}
+
+.problem-container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.problem-lead {
+  font-family: var(--font-serif);
+  font-size: var(--text-title);
+  color: var(--charcoal);
+}
+
+.problem-body {
+  font-size: var(--text-body);
+  color: var(--stone);
+  max-width: 680px;
+}
+
+/* How It Works Section */
+.landing-how-section {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+.how-steps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.step-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.step-number {
+  font-family: var(--font-mono);
+  font-size: var(--text-title);
+  font-weight: var(--weight-bold);
+  color: var(--clay-dark);
+}
+
+.step-title {
+  font-family: var(--font-serif);
+  font-size: var(--text-title-sm);
+  color: var(--charcoal);
+}
+
+.step-text {
+  font-size: var(--text-body);
+  color: var(--stone);
+}
+
+/* Work Passport Band (Charcoal surface) */
+.landing-passport-section {
+  background-color: var(--charcoal);
+  color: var(--cream);
+  padding: var(--space-8) var(--space-4);
+}
+
+.passport-container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-7);
+  align-items: center;
+}
+
+.passport-container h2 {
+  color: var(--cream);
+  font-size: var(--text-display);
+}
+
+.passport-container p {
+  color: var(--cream-deep);
+}
+
+.passport-explanation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.passport-check-limits {
+  background-color: var(--charcoal-soft);
+  border-left: 2px solid var(--moss-bright);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-label);
+  color: var(--cream);
+}
+
+/* Bento Features Section (Uneven) */
+.landing-bento-section {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+}
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  grid-template-rows: auto auto;
+  gap: var(--space-5);
+  margin-top: var(--space-6);
+}
+
+.bento-large {
+  grid-row: span 2;
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.bento-medium {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-5);
+}
+
+.bento-strip {
+  grid-column: 1 / -1;
+  background-color: var(--cream);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+}
+
+/* Two Sides Section */
+.landing-sides-section {
+  background-color: var(--linen);
+  padding: var(--space-8) var(--space-4);
+}
+
+.sides-container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-6);
+  margin-top: var(--space-6);
+}
+
+.side-panel-worker {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+
+.side-panel-customer {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: var(--space-6);
+}
+
+/* Closing Section */
+.landing-closing-section {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Footer (Charcoal) */
+.landing-footer {
+  background-color: var(--charcoal);
+  color: var(--cream);
+  padding: var(--space-7) var(--space-4);
+  margin-top: auto;
+}
+
+.footer-container {
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+}
+
+.footer-nav {
+  display: flex;
+  gap: var(--space-5);
+  flex-wrap: wrap;
+}
+
+.footer-link {
+  color: var(--cream);
+  text-decoration: none;
+  font-size: var(--text-label);
+}
+
+.footer-link:hover {
+  text-decoration: underline;
+  color: var(--moss-bright);
+}
+
+.footer-note {
+  font-size: var(--text-label-sm);
+  color: var(--river);
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+/* Responsive Overrides */
+@media (max-width: 768px) {
+  .landing-hero-section {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+
+  .how-steps-grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+  }
+
+  .passport-container {
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+  }
+
+  .bento-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sides-container {
+    grid-template-columns: 1fr;
+  }
+}

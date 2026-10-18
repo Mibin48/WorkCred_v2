@@ -13,9 +13,9 @@
 | | **B6** | Free Now and Realtime (FREE-1 to FREE-5, Realtime 7.12, Section 15 Events) | **DONE** (Accepted & Working) | — | None | Proceeded to B7 |
 | | **B7** | Feed and Social, Endorsements, Reports (FEED-1 to FEED-6, WPRO-1, WPRO-3) | **DONE** (Accepted & Working) | — | None | Proceeded to S1 |
 | **Phase 3: Seed Data** | **S1** | Seed Data & Reset Suite (Workers, Customers, Bookings, Passports, Compass, Demo Routes) | **DONE** (Accepted & Working) | — | None | Ready for Frontend / Next Phase |
-| **Phase 4: Frontend Integration** | **S1** | Shared Pure Modules (Validation, Integrity, Contact Blocking) | Not Started | — | — | Isomorphic browser/node shared code |
-| | **I1** | Frontend Foundation & Design Tokens | Not Started | — | — | CSS tokens & basic layout |
-| | **I2** | Landing Page & Auth Flow UI | Not Started | — | — | Responsive marketing & auth forms |
+| **Phase 4: Frontend Integration** | **S1** | Shared Pure Modules (Validation, Integrity, Contact Blocking) | **DONE** (Accepted & Working) | — | None | Isomorphic browser/node shared code |
+| | **I1** | Frontend Foundation, App Shell, Landing, Auth & Onboarding | **DONE** (Code Written & Verified) | — | None | Ready for Phase I3 (Customer Discovery & Booking Sheets) |
+| | **I2** | Auth & Onboarding Flow UI (Integrated in I1) | **DONE** (Code Written & Verified) | — | None | Delivered as part of unified I1 App Shell |
 | | **I3** | Customer Discovery & Booking Sheets | Not Started | — | — | Search, filters, worker profile, booking |
 | | **I4** | Worker Workflows, Free Now & Calendar | Not Started | — | — | Free Now card & request management |
 | | **I5** | Work Passport & Receipt UI | Not Started | — | — | Passport timeline, stamp & receipt |

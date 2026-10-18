@@ -1,0 +1,185 @@
+/* WorkCred Design System Tokens (Version 2.2) */
+/* Lives at: frontend/css/tokens.css */
+/* Source of truth for colours, typography, spacing, radii, shadows, layers and motion. */
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/newsreader-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/assets/fonts/newsreader-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/newsreader-latin-400-italic.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/assets/fonts/plus-jakarta-sans-latin-400-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/assets/fonts/plus-jakarta-sans-latin-500-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/assets/fonts/plus-jakarta-sans-latin-600-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/assets/fonts/plus-jakarta-sans-latin-700-normal.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  /* Palette - Primary brand */
+  --clay: #c85a32;
+  --clay-dark: #9f3c16;
+  --clay-text: #9f3c16;
+  --clay-tint: #f9ece6;
+  --clay-border: #eccdc0;
+  --clay-light: #f0a27f;
+
+  /* Palette - Trust green */
+  --moss: #2a5a3b;
+  --moss-light: #386848;
+  --moss-tint: #e2efe6;
+  --moss-border: #b8dac2;
+  --moss-bright: #7ecf99;
+
+  /* Palette - Warm yellow */
+  --ochre: #d49b35;
+  --ochre-tint: #faf3e4;
+  --ochre-border: #f0deb4;
+
+  /* Palette - Inks and Neutrals */
+  --charcoal: #23201e;
+  --charcoal-soft: #2d2724;
+  --stone: #5c544e;
+  --stone-dark: #514943;
+  --river: #8a7e74;
+  --paper: #faf7f2;
+  --surface: #ffffff;
+  --linen: #f3efe6;
+  --cream: #f4f0ea;
+  --cream-deep: #eee8df;
+  --parchment: #e9e2d5;
+  --border: #ddd5c5;
+  --border-strong: #ccc3b3;
+
+  /* Palette - Semantic Feedback */
+  --success: #2a5a3b;
+  --success-tint: #e2efe6;
+  --warning: #815300;
+  --warning-tint: #faf3e4;
+  --error: #ba1a1a;
+  --error-tint: #ffdad6;
+  --info: #365c70;
+  --info-tint: #e8f0f2;
+
+  /* Typography - Stacks */
+  --font-serif: 'Newsreader', Georgia, serif;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /* Typography - Display Scale (Newsreader) */
+  --text-display-lg: 2.75rem;
+  --text-display: 2.25rem;
+  --text-display-sm: 1.75rem;
+
+  /* Typography - Type Scale (Plus Jakarta Sans) */
+  --text-title: 1.5rem;
+  --text-title-sm: 1.25rem;
+  --text-body-lead: 1.125rem;
+  --text-body: 1rem;
+  --text-label: 0.875rem;
+  --text-label-sm: 0.8125rem;
+
+  /* Typography - Line Heights */
+  --leading-tight: 1.2;
+  --leading-snug: 1.35;
+  --leading-normal: 1.5;
+  --leading-loose: 1.6;
+
+  /* Typography - Font Weights */
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --weight-bold: 700;
+
+  /* Spacing - 8px Rhythm */
+  --space-1: 0.25rem;  /* 4px */
+  --space-2: 0.5rem;   /* 8px */
+  --space-3: 0.75rem;  /* 12px */
+  --space-4: 1rem;     /* 16px */
+  --space-5: 1.5rem;   /* 24px */
+  --space-6: 2rem;     /* 32px */
+  --space-7: 3rem;     /* 48px */
+  --space-8: 4rem;     /* 64px */
+  --space-9: 6rem;     /* 96px */
+
+  /* Shape - Border Radii */
+  --radius-sm: 4px;       /* controls, inputs */
+  --radius-md: 8px;       /* cards, dialogs */
+  --radius-lg: 16px;      /* hero surfaces */
+  --radius-full: 9999px;  /* pills, badges, buttons */
+
+  /* Elevation - Shadows */
+  --shadow-none: none;
+  --shadow-sheet: 0 -4px 16px rgba(35, 32, 30, 0.08);
+  --shadow-floating: 0 4px 16px rgba(35, 32, 30, 0.12);
+  --shadow-passport: 0 8px 24px rgba(35, 32, 30, 0.16);
+
+  /* Layout - Layers (Z-index) */
+  --z-base: 1;
+  --z-header: 10;
+  --z-nav: 20;
+  --z-toast: 30;
+  --z-sheet: 40;
+  --z-dialog: 50;
+
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-normal: 240ms;
+  --motion-slow: 400ms;
+  --motion-ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* Dimensions */
+  --touch-target-min: 48px;
+  --app-max-width: 480px;
+  --content-max-width: 1080px;
+}

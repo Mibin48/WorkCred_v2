@@ -106,3 +106,87 @@
 - Updated `docs/SECURITY_SPEC.md` (Section 11).
 - Updated `docs/API_CONTRACT.md` (Section 15 `GET /demo/accounts`).
 - Updated `docs/PROGRESS.md` & `README.md`.
+
+---
+
+# Session Summary: Phase I1 (Frontend Foundation, App Shell, Landing, Auth & Onboarding)
+
+**Date:** 2026-10-17  
+**Phase Completed:** Phase I1 (Frontend Foundation, App Shell, Landing, Auth & Onboarding - Frontend Only)  
+**Status:** Code Written & Test Suites Passing (59/59 unit tests passing, token linter clean, Playwright E2E suite prepared)
+
+## 1. What Was Built in Phase I1
+
+### A. Core Architecture & Server
+1. **Frontend Server (`frontend/server.js`, `frontend/serverUtils.js`):**
+   - Express static file server running on port 3000.
+   - Dynamic per-request Helmet Content Security Policy with cryptographic nonces (`crypto.randomBytes(16)`).
+   - Strict `ALLOWED_HOSTS` enforcement preventing hostname mismatch between `localhost` and `127.0.0.1`.
+   - Dynamic `/config.js` serving `API_URL` and `ENV`.
+   - `/shared` allowlist permitting only pure validation modules (`validators.js`, `passwordRules.js`, `containsContactInfo.js`, `profileRules.js`). Sensitive backend modules (e.g. `localities.js` with GPS coordinates) return 404.
+   - Cache-control: static assets (1h with ETag), HTML/SPA entry points (`no-cache`).
+
+### B. Safe DOM & Design Token System
+1. **Design Tokens (`frontend/css/tokens.css`):**
+   - Palette from `DESIGN_SYSTEM.md` v2.2: ink (`#0e1011`), paper (`#fbf8f3`), brand (`#00573d`), rule (`#ebe6dd`), accent (`#d4643a`), success (`#2e6930`), warn (`#8c5e00`), danger (`#a82020`).
+   - Rem-based font scale, 8px rhythm spacing, radii, elevations, motion curves.
+2. **Token Linter (`scripts/lint-tokens.js`):**
+   - Enforces design token rules, bans raw hex colors, gradients, and forbidden DOM sinks (`innerHTML`, `outerHTML`, `insertAdjacentHTML`, `document.write`, `eval`, `new Function`, inline `style=`).
+   - Validates WCAG contrast ratios (all text colors >= 4.5:1).
+3. **Safe DOM Builder (`frontend/app/js/utils/dom.js`):**
+   - Pure `h(tag, props, ...children)` with attribute allowlist, URL protocol sanitization (`javascript:`, `vbscript:`, `data:` blocked), and direct event listener binding.
+4. **String Dictionary (`frontend/app/js/i18n/strings.en.js`):**
+   - Zero literal UI strings in components; comprehensive translation dictionary for all labels, headings, buttons, and errors.
+
+### C. Client Session & API Client
+1. **Session Manager (`frontend/app/js/session.js`):**
+   - Memory-only access token (never touches `localStorage` or `sessionStorage`).
+   - Concurrency-safe refresh token rotation using `navigator.locks.request("workcred-refresh")` with localStorage lease fallback.
+   - Cross-tab session synchronization via `BroadcastChannel("workcred-auth")`.
+   - Proactive refresh timer at 13 minutes (unreferenced for clean test teardown).
+2. **API Client (`frontend/app/js/api.js`):**
+   - Envelope parser extracting `{ success, data, error }`.
+   - Mandatory `X-Requested-With: WorkCred` header on `/auth/refresh` and `/auth/logout`.
+   - Single automatic retry on `TOKEN_INVALID` via refresh lock.
+   - Immediate local session clearing on `SESSION_INVALID` / `SESSION_REVOKED`.
+   - Host mismatch detection warning.
+
+### D. Image Processing & Uploads
+1. **`frontend/app/js/utils/imageMath.js`:**
+   - Client-side downscaling math enforcing max dimension <= 1280px without upscaling.
+2. **`frontend/app/js/utils/uploader.js`:**
+   - HTML5 canvas redraw stripping EXIF metadata.
+   - Requests signature from backend `POST /api/v1/uploads/sign`, uploads directly to Cloudinary via `FormData`.
+
+### E. UI Components & Pages
+1. **Component Catalog (`frontend/app/js/components/`):**
+   - 21 reusable components: `AppHeader`, `BottomNav`, `Button`, `ChoiceChip`, `CompassBar`, `DevBanner`, `EmptyState`, `ErrorState`, `Field`, `IndexTabs`, `LedgerRule`, `LocalityPicker`, `NetworkBanner`, `PasswordField`, `RangeField`, `SampleDataLabel`, `Sheet`, `SkeletonLine`, `SkillPicker`, `Stamp`, `Toast`, `Wordmark`.
+2. **Pages (`frontend/app/js/pages/`):**
+   - `LoginPage`: Role-segmented login with dev demo quick-switcher.
+   - `SignupPage`: Worker and customer registration forms with real-time password strength rules.
+   - `OnboardingPage`: Step-by-step onboarding with partial save (auto-saving name, locality, skills, rates) and Cloudinary avatar upload.
+   - `AccountPage`: Profile details, role badge, session status, password change link, and logout.
+   - `ChangePasswordPage`: Forced and voluntary password update flow.
+   - `WorkerHomePage` & `CustomerFindPage`: Role home views with active status, bottom tabs, and placeholders.
+   - `PlaceholderPage`: Honest coming-soon placeholders for remaining phases.
+   - `HostMismatchPage`: Explanatory screen for localhost vs 127.0.0.1 confusion.
+3. **Static Landing & Legal Pages:**
+   - `frontend/index.html` + `frontend/css/landing.css` + `frontend/js/landing.js`: Responsive landing page per Design System Section 14 with interactive Compass demo and accordion FAQ.
+   - `frontend/404.html`, `frontend/privacy.html`, `frontend/terms.html`, `frontend/grievance.html`.
+
+### F. Testing & Quality Assurance
+- **59 Unit Tests (`tests/unit/`):**
+  - `api.test.js` (6 tests)
+  - `config.test.js` (3 tests)
+  - `csp.test.js` (4 tests)
+  - `dom.test.js` (11 tests)
+  - `imageMath.test.js` (7 tests)
+  - `lintTokens.test.js` (6 tests)
+  - `router.test.js` (6 tests)
+  - `session.test.js` (7 tests)
+  - `sharedAllowlist.test.js` (5 tests)
+  - `strings.test.js` (4 tests)
+- **Token Linter:** All CSS tokens, typography, colors, and DOM sinks passing with 0 errors.
+- **Playwright E2E Suite (`tests/e2e/phase-i1.spec.js`):** 13 end-to-end scenarios covering landing page, customer/worker registration, demo login, partial onboarding save, tab navigation, axe-core a11y audit, multi-tab logout sync, and mobile responsiveness.
+- **Decisions Added:** Decisions M1 to M12 (#59–#70) in `docs/DECISIONS.md`.
+

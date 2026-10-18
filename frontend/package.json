@@ -1,0 +1,25 @@
+{
+  "name": "workcred-frontend",
+  "version": "1.0.0",
+  "description": "WorkCred Frontend Server and Web App",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "dev": "node --env-file=.env --watch server.js"
+  },
+  "dependencies": {
+    "compression": "1.8.0",
+    "express": "4.22.3",
+    "helmet": "8.3.0"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.11.2",
+    "@fontsource/newsreader": "5.2.5",
+    "@fontsource/plus-jakarta-sans": "5.2.5",
+    "@playwright/test": "1.58.2"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  }
+}

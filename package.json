@@ -1,0 +1,25 @@
+{
+  "name": "workcred-root",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WorkCred Root Management & Tooling",
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/setup.js",
+    "start": "node scripts/start.js",
+    "start:frontend": "cd frontend && npm start",
+    "start:backend": "cd backend && npm start",
+    "doctor": "node scripts/doctor.js",
+    "lint:tokens": "node scripts/lint-tokens.js",
+    "test": "node --test tests/unit/**/*.test.js",
+    "test:e2e": "playwright test",
+    "test:all": "npm test && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.11.2",
+    "@playwright/test": "1.58.2"
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  }
+}

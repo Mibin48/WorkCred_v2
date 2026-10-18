@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WorkCred · Proof of work, work near you</title>
+  <meta name="description" content="WorkCred helps daily-wage workers build a verified work history through completed jobs, and helps families find reliable help nearby with fair rates.">
+  <link rel="stylesheet" href="/css/tokens.css">
+  <link rel="stylesheet" href="/css/base.css">
+  <link rel="stylesheet" href="/css/layout.css">
+  <link rel="stylesheet" href="/css/components.css">
+  <link rel="stylesheet" href="/css/landing.css">
+</head>
+<body class="landing-body">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <!-- Top bar -->
+  <header class="landing-header">
+    <div class="landing-nav-container">
+      <a href="/" class="wordmark" aria-label="WorkCred Home">
+        <svg class="wordmark-symbol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+          <polyline points="6 9 10 13 18 5"></polyline>
+        </svg>
+        <span class="wordmark-text">WorkCred</span>
+      </a>
+
+      <nav class="landing-nav-links" aria-label="Main navigation">
+        <a href="#how-it-works" class="landing-nav-link">How it works</a>
+        <a href="#for-workers" class="landing-nav-link">For workers</a>
+        <a href="#for-families" class="landing-nav-link">For families</a>
+        <a href="/app/login" class="btn btn-quiet">Log in</a>
+        <a href="/app/signup" class="btn btn-primary">Sign up</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <!-- Hero section -->
+    <section class="landing-hero-section landing-section">
+      <div class="hero-copy">
+        <h1 class="hero-headline">
+          Proof of work, <span class="hero-underline-wrapper"><span class="italic-clay">work</span><img src="/assets/icons/pencil-underline.svg" alt="" class="hero-underline-svg"></span> near you.
+        </h1>
+        <p class="hero-subtext">
+          WorkCred helps workers build a verified history through completed jobs, and helps families find trusted help nearby with fair prices.
+        </p>
+        <div class="hero-actions">
+          <a href="/app/signup?role=worker" class="btn btn-primary">I want work</a>
+          <a href="/app/signup?role=customer" class="btn btn-secondary">I need a worker</a>
+        </div>
+      </div>
+
+      <!-- Sample Passport Card artifact -->
+      <div class="hero-artifact">
+        <div class="card-passport" role="region" aria-label="Sample Work Passport card">
+          <div class="flex justify-between items-center mb-3">
+            <span class="sample-badge">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path>
+              </svg>
+              <span>Sample</span>
+            </span>
+            <span class="choice-chip" aria-pressed="true">
+              <span>Free now · 4h</span>
+            </span>
+          </div>
+
+          <h2 class="font-serif">Ravi Kumar</h2>
+          <p class="text-small mb-3">Electrician · Kakkanad</p>
+
+          <div class="ledger-rule"></div>
+
+          <div class="stamp mb-4">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            <span>History checked: Valid, 12 records</span>
+          </div>
+
+          <p class="text-small">Normal rate: ₹250/hr · 42 verified hours</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Problem statement on --linen -->
+    <section class="landing-problem-section landing-section">
+      <div class="problem-container">
+        <p class="problem-lead">
+          Good work happens every day, but cash jobs leave no trace.
+        </p>
+        <p class="problem-body">
+          When a worker starts with a new customer, they start from zero with no proof of their track record. When families hire, they rely on guesswork. WorkCred keeps an honest record of completed jobs so trust is earned through evidence.
+        </p>
+      </div>
+    </section>
+
+    <!-- How it works -->
+    <section id="how-it-works" class="landing-how-section landing-section">
+      <h2 class="heading-display">How it works</h2>
+      <div class="ledger-rule"></div>
+
+      <div class="how-steps-grid">
+        <div class="step-card">
+          <div class="step-number">01</div>
+          <h3 class="step-title">Agree and start</h3>
+          <p class="step-text">
+            Choose a nearby worker or post a job. When the worker arrives on site, both verify the 4-digit start code to record the start time.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">02</div>
+          <h3 class="step-title">Finish and pay cash</h3>
+          <p class="step-text">
+            When the job is complete, enter the finish code. Cash is paid directly to the worker. There is no middleman and no commission taken.
+          </p>
+        </div>
+
+        <div class="step-card">
+          <div class="step-number">03</div>
+          <h3 class="step-title">History is sealed</h3>
+          <p class="step-text">
+            Every completed job creates a tamper-evident entry in the worker's Work Passport, providing verifiable proof for future customers.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Work Passport Band (Charcoal surface) -->
+    <section class="landing-passport-section landing-section">
+      <div class="passport-container">
+        <div class="passport-explanation">
+          <h2>The Work Passport</h2>
+          <p>
+            An append-only work register that workers carry with them. Each finished job is linked with a cryptographic check that proves the entry has not been altered.
+          </p>
+          <div class="passport-check-limits">
+            <strong>How we check:</strong> each record confirms both parties completed the code handshake on site. We do not verify identity, background, or guarantee work. Cash payment is reported by the customer.
+          </div>
+        </div>
+
+        <div>
+          <div class="margin-timeline">
+            <div class="margin-entry">
+              <span class="margin-entry-seq">#01</span>
+              <div>
+                <strong>Switchboard rewiring</strong>
+                <p class="text-small">Record 8K3M · 3.5 hours · Cash reported by customer</p>
+              </div>
+            </div>
+            <div class="margin-entry">
+              <span class="margin-entry-seq">#02</span>
+              <div>
+                <strong>Ceiling fan installation</strong>
+                <p class="text-small">Record 9F2P · 2.0 hours · Cash reported by customer</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- What's inside (Bento arrangement) -->
+    <section class="landing-bento-section landing-section">
+      <h2 class="heading-display">What's inside</h2>
+      <div class="ledger-rule"></div>
+
+      <div class="bento-grid">
+        <div class="bento-large">
+          <div class="flex justify-between items-center mb-2">
+            <h3 class="font-serif">Fair Rate Compass</h3>
+            <span class="sample-badge">Sample</span>
+          </div>
+          <p class="body-text mb-4">
+            See normal rate bands for skills in your area calculated from local job handshakes, so customers and workers agree fairly.
+          </p>
+          <div class="compass-bar-track">
+            <div class="compass-band" data-left="25" data-width="50"></div>
+            <div class="compass-median-tick" data-left="50"></div>
+          </div>
+          <p class="text-small text-center text-stone mt-3">Normal rate band for Electrician in Kakkanad: ₹200 – ₹300/hr (median ₹250/hr).</p>
+        </div>
+
+        <div class="bento-medium">
+          <h3 class="font-serif mb-2">Free now</h3>
+          <p class="body-text">
+            Workers tap when they have open hours (2, 4 or 8 hours) to appear on the local radar for instant nearby matching.
+          </p>
+        </div>
+
+        <div class="bento-medium">
+          <h3 class="font-serif mb-2">Two-code handshake</h3>
+          <p class="body-text">
+            Start code on arrival, finish code on completion. Eliminates disputes over attendance and hours.
+          </p>
+        </div>
+
+        <div class="bento-strip">
+          <p class="body-text">
+            <strong>Nearby feed:</strong> Share before-and-after work photos and see recent verified jobs in your neighborhood.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Two Sides Section -->
+    <section class="landing-sides-section landing-section">
+      <div class="sides-container">
+        <div id="for-workers" class="side-panel-worker">
+          <h3 class="heading-title mb-2">For workers</h3>
+          <p class="body-text mb-4">Take your reputation with you wherever you work.</p>
+          <ul class="margin-timeline">
+            <li class="margin-entry">
+              <span class="margin-entry-seq">•</span>
+              <div>Keep 100% of cash earned with zero platform commission.</div>
+            </li>
+            <li class="margin-entry">
+              <span class="margin-entry-seq">•</span>
+              <div>Build a permanent, portable Work Passport.</div>
+            </li>
+            <li class="margin-entry">
+              <span class="margin-entry-seq">•</span>
+              <div>Broadcast availability in one tap with Free now.</div>
+            </li>
+          </ul>
+          <div class="mt-4">
+            <a href="/app/signup?role=worker" class="btn btn-primary">Sign up as worker</a>
+          </div>
+        </div>
+
+        <div id="for-families" class="side-panel-customer">
+          <h3 class="heading-title mb-2">For families and shops</h3>
+          <p class="body-text mb-4">Hire help nearby based on real track records.</p>
+          <div class="card mb-3">
+            <div class="flex justify-between items-center mb-2">
+              <span class="font-bold">Sample Booking Ticket</span>
+              <span class="sample-badge">Sample</span>
+            </div>
+            <p class="text-small">Start code: • • • • (revealed on arrival)</p>
+            <div class="tear-edge"></div>
+            <p class="text-small">Cash payment reported directly to worker after job completion.</p>
+          </div>
+          <div>
+            <a href="/app/signup?role=customer" class="btn btn-secondary">Find help nearby</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Closing section -->
+    <section class="landing-closing-section landing-section">
+      <h2 class="heading-display">Ready to begin?</h2>
+      <p class="body-text">Create your account in under 3 minutes.</p>
+      <div class="mt-3">
+        <a href="/app/signup" class="btn btn-primary">Get started</a>
+      </div>
+    </section>
+  </main>
+
+  <!-- Footer -->
+  <footer class="landing-footer">
+    <div class="footer-container">
+      <div>
+        <a href="/" class="wordmark wordmark-inverted" aria-label="WorkCred Home">
+          <svg class="wordmark-symbol" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <polyline points="6 9 10 13 18 5"></polyline>
+          </svg>
+          <span class="wordmark-text">WorkCred</span>
+        </a>
+      </div>
+
+      <nav class="footer-nav" aria-label="Footer navigation">
+        <a href="/privacy" class="footer-link">Privacy</a>
+        <a href="/terms" class="footer-link">Terms</a>
+        <a href="/grievance" class="footer-link">Grievance</a>
+        <a href="#how-it-works" class="footer-link">How it works</a>
+        <a href="mailto:contact.sample@example.com" class="footer-link">Contact (sample placeholder)</a>
+      </nav>
+
+      <div class="footer-note">
+        WorkCred is a local platform connecting workers and customers. All monetary settlement is cash only between participants.
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/landing.js"></script>
+</body>
+</html>

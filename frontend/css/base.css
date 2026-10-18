@@ -1,0 +1,158 @@
+/* WorkCred Base Styles (Reset, Typography, Accessibility) */
+/* Lives at: frontend/css/base.css */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--charcoal);
+  background-color: var(--linen);
+  -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--linen);
+  color: var(--charcoal);
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-serif);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-tight);
+  color: var(--charcoal);
+}
+
+h1 {
+  font-size: var(--text-display);
+}
+
+h2 {
+  font-size: var(--text-title);
+}
+
+h3 {
+  font-size: var(--text-title-sm);
+}
+
+p {
+  font-size: var(--text-body);
+  line-height: var(--leading-normal);
+  color: var(--stone);
+}
+
+p.body-lead {
+  font-size: var(--text-body-lead);
+  line-height: var(--leading-snug);
+  color: var(--charcoal-soft);
+}
+
+small, .text-small {
+  font-size: var(--text-label);
+  line-height: var(--leading-snug);
+}
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: var(--text-label);
+}
+
+/* Links */
+a {
+  color: var(--clay-text);
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+a:hover {
+  color: var(--clay-dark);
+}
+
+/* Accessible focus ring */
+:focus-visible {
+  outline: 2px solid var(--clay);
+  outline-offset: 2px;
+}
+
+/* Reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0s !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Accessibility: Skip link */
+.skip-link {
+  position: absolute;
+  top: var(--space-2);
+  left: var(--space-2);
+  background: var(--surface);
+  color: var(--clay-dark);
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  z-index: var(--z-dialog);
+  font-weight: var(--weight-semibold);
+  transform: translateY(-200%);
+  transition: transform var(--motion-fast) ease;
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* Accessibility: Visually hidden utility */
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Utility Helpers */
+.text-center {
+  text-align: center;
+}
+
+.text-left {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+.font-sans {
+  font-family: var(--font-sans);
+}
+
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+.italic-clay {
+  font-style: italic;
+  color: var(--clay);
+}

@@ -26,9 +26,12 @@
 > **API Headers Rule:** All API responses under `/api/v1/*` are served with `Cache-Control: no-store, no-cache, must-revalidate, proxy-revalidate`. Errors never leak stack traces. Invalid JSON payloads return `400 BAD_JSON`. Unmatched routes return `404 NOT_FOUND`.
 
 ### Frontend Integration Rules (Critical)
-1. **One Refresh At A Time:** When access token expires, frontend must perform at most one refresh request concurrently. Concurrent calls will trigger family revocation (`SESSION_INVALID`).
+1. **One Refresh At A Time:** When access token expires, frontend must perform at most one refresh request concurrently. Concurrent calls will trigger family revocation (`SESSION_INVALID`). Managed via `navigator.locks.request("workcred-refresh")` with localStorage lease fallback (`frontend/app/js/session.js`).
 2. **Send Header:** All requests to `POST /auth/refresh` and `POST /auth/logout` MUST include `X-Requested-With: WorkCred`.
-3. **Never Mix Hostnames:** Never mix `localhost` and `127.0.0.1` in URLs during development; cookies set on `localhost` will not be attached to requests sent to `127.0.0.1`.
+3. **Never Mix Hostnames:** Never mix `localhost` and `127.0.0.1` in URLs during development; cookies set on `localhost` will not be attached to requests sent to `127.0.0.1`. Enforced by `ALLOWED_HOSTS` in `frontend/server.js` and `frontend/app/js/api.js`.
+4. **Memory-Only Access Tokens:** Access tokens are stored exclusively in in-memory JavaScript variables. They are never written to `localStorage`, `sessionStorage`, or cookies.
+5. **Envelope Parsing:** Frontend API client (`frontend/app/js/api.js`) automatically unwraps standard success `{ success: true, data }` envelopes and converts `{ success: false, error: { code, message, details } }` into structured errors.
+6. **Multi-Tab Sync:** Login, logout, and token rotation events are mirrored across all open tabs via `BroadcastChannel("workcred-auth")`.
 
 ---
 

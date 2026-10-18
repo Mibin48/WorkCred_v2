@@ -73,6 +73,36 @@ All backend commands can be run from the `backend/` directory or at root using s
 
 ---
 
+## Frontend Commands Reference (`frontend/` & Root)
+
+### Setup & Startup
+- `npm run setup`: Run full project setup (copies `.env`, extracts WOFF2 fonts, installs dependencies).
+- `npm run doctor`: Check Node version, environment variables, port availability (3000 & 4000), and font files.
+- `npm start`: Concurrently run both frontend (`:3000`) and backend (`:4000`) servers.
+- `npm run start:frontend`: Start frontend Express static server on port 3000.
+- `npm run dev:frontend`: Start frontend server with `--watch`.
+
+### Quality & Testing
+- `npm run lint:tokens`: Lint all CSS against design tokens, ban raw hex/gradients, and scan for forbidden DOM sinks (`innerHTML`, etc.).
+- `npm test`: Run frontend unit test suite (59 tests covering DOM builder, API client, router, session, CSP, token linter, image math).
+- `npm run test:e2e`: Run Playwright end-to-end integration tests (landing, registration, login, onboarding, a11y, mobile responsiveness).
+
+### Mobile Testing over LAN
+To test on a physical phone on the same Wi-Fi network:
+1. Find your machine's local IP address (e.g. `192.168.1.50`).
+2. Add your LAN IP to `ALLOWED_HOSTS` in `frontend/.env`:
+   ```env
+   ALLOWED_HOSTS=localhost,127.0.0.1,192.168.1.50
+   API_URL=http://192.168.1.50:4000
+   ```
+3. Update `CORS_ORIGIN` in `backend/.env`:
+   ```env
+   CORS_ORIGIN=http://192.168.1.50:3000
+   ```
+4. Restart servers with `npm start` and open `http://192.168.1.50:3000` on your mobile browser.
+
+---
+
 ## Project Delivery Phases
 
 | Phase | Description |
